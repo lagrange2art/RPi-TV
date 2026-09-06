@@ -1,11 +1,14 @@
-<html>
+<!doctype html>
+<html lang="en">
 <head>
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Logs / RPI TV</title>
 </head>
 <body>
-  <h1>Application logs</h1>
-  <pre>{{ log_content|safe }}</pre>
-  <a href="/">back</a>
+  <main class="app-shell">
+    <header class="page-header"><div><p class="eyebrow">System monitor</p><h1>LOG STREAM</h1><p>Recent events from the RPI TV control service.</p></div><a class="back-link" href="/">Back to control</a></header>
+    <section class="panel"><pre>{{ log_content|safe }}</pre></section>
+  </main>
 </body>
 </html>

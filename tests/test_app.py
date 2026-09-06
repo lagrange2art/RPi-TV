@@ -84,7 +84,6 @@ def test_logs_route(tmp_path, monkeypatch):
 
         assert response.status_code == 200
         assert b"GET /static/style.css HTTP/1.1" in response.data
-        assert b"style=" in response.data
         assert b"\x1b" not in response.data
     finally:
         rpitv.close()

@@ -70,19 +70,10 @@ rsync -avz --delete \
   --exclude '*.pyc' \
   --exclude 'test*' \
   --exclude 'install-rpitv.sh' \
+  --exclude 'build' \
   "${LOCAL_APP_DIR}/" "${PI_HOST}:${REMOTE_APP_DIR}/"
 
-# echo "==> Updating system packages"
-# apt-get update
-# apt-get install -y python3 python3-pip python3-venv python3-dev
-
-# echo "==> Installing Python dependencies"
-# "${PYTHON_BIN}" -m pip install --upgrade pip setuptools wheel
-# "${PYTHON_BIN}" -m pip install flask numpy matplotlib
-
-# Optional hardware libs for Raspberry Pi LED control
-# "${PYTHON_BIN}" -m pip install adafruit-blinka adafruit-circuitpython-neopixel
-
+echo "==> Updating system packages"
 ssh "${PI_HOST}" "
   cd '${REMOTE_APP_DIR}' &&
   ${PYTHON_BIN} -m pip install --upgrade pip setuptools wheel &&
@@ -96,6 +87,17 @@ DESCRIPTION="$2"
 APP_USER="$3"
 PYTHON_BIN="$4"
 APP_DIR="$5"
+
+echo "==> Removing existing systemd service ${SERVICE_NAME} if present"
+if systemctl cat "${SERVICE_NAME}.service" >/dev/null 2>&1; then
+  systemctl stop "${SERVICE_NAME}.service" || true
+  systemctl disable "${SERVICE_NAME}.service" || true
+fi
+
+rm -f \
+  "/etc/systemd/system/${SERVICE_NAME}.service" \
+  "/lib/systemd/system/${SERVICE_NAME}.service"
+systemctl daemon-reload
 
 echo "...writing /lib/systemd/system/${SERVICE_NAME}.service"
 cat > "/lib/systemd/system/${SERVICE_NAME}.service" <<EOF

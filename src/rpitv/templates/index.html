@@ -1,23 +1,27 @@
-<html>
+<!doctype html>
+<html lang="en">
 <head>
-	<link rel='stylesheet' href='static/style.css' />
-	<meta name='viewport' content='width=device-width, initial-scale=1.0'>
-    <style>
-        a:link {
-          color: white;
-        }
-        a:visited {
-          color: grey;
-        }
-    </style>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RPI TV Control</title>
 </head>
 <body>
-<h1> RPI for TV 2.0</h1>
-
-<a href="/fillstrip/0,0,0">led strip on</a> <br> <br>
-<a href="/ambilight">ambilight</a> <br> <br>
-<a href='animation'>animation</a> <br> <br>
-<a href='audiovisual/ladder'>audiovisual</a>
-<a class="logs-button" href="/logs">Logs</a>
+  <main class="app-shell">
+    <header class="page-header">
+      <div>
+        <p class="eyebrow">Raspberry Pi / Light system</p>
+        <h1>RPI TV<br>CONTROL</h1>
+        <p>Direct the strip. Tune the atmosphere. Keep the room in motion.</p>
+      </div>
+      <span class="status-light">SYSTEM READY</span>
+    </header>
+    <section class="control-grid" aria-label="Control modes">
+      <a class="control-card" href="/fillstrip/0,0,0"><span class="index">01 / STRIP</span><strong>Fill strip</strong><span>Choose a color and brightness</span></a>
+      <a class="control-card" href="/ambilight"><span class="index">02 / AMBIENT</span><strong>Ambilight</strong><span>Extend the screen into the room</span></a>
+      <a class="control-card" href="/animation/"><span class="index">03 / MOTION</span><strong>Animation</strong><span>Rotate or strobe the LEDs</span></a>
+      <a class="control-card" href="/audiovisual/ladder"><span class="index">04 / AUDIO</span><strong>Audiovisual</strong><span>Make light respond to sound</span></a>
+    </section>
+  </main>
+  <a class="logs-button" href="/logs">View logs</a>
 </body>
 </html>
