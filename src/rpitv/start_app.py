@@ -32,10 +32,8 @@ from rpitv.rpi_wrapper import (
 class RPiTV:
     def __init__(self, app, brightness=0.5, testing: bool=False):
         self.app = app
-        self.brightness = brightness
-
         adc = ADC(testing=testing)
-        pixels = LedStrip(testing=testing)
+        pixels = LedStrip(testing=testing, brightness=brightness)
         rotate = Rotate(pixels)
         strobo = Strobo(pixels)
         audiovisual = AudioVisual(adc, pixels)
@@ -72,9 +70,7 @@ class RPiTV:
         """ When URL fillstrip/rgb is requested the led strip lights up
         according to rgb values. 
         param str rgb: string with comma seperated rgb values """
-        # adjust brightness of rgb = 'r,g,b'
         rgb = np.array(rgb.split(',')).astype(int)   # rgb = [r,g,b]
-        rgb = (self.brightness*rgb).astype(int)
         rgb = ','.join(rgb.astype(str))              # rgb = 'r,g,b'
 
         if isinstance(rgb, str):
@@ -87,7 +83,7 @@ class RPiTV:
         return render_template(
             'fillstrip.html',
             name=rgb,
-            brightness=self.brightness,
+            brightness=self.pixels.brightness,
         )
 
 
@@ -95,7 +91,7 @@ class RPiTV:
         if request.method == 'GET':
             return "Use the brightness slider to update the value"
 
-        self.brightness = float(request.form['Brightness'])
+        self.pixels.brightness = float(request.form['Brightness'])
         return self.fillstrip(rgb)
 
 
@@ -141,7 +137,7 @@ def main(args=None) -> None:
     if args is None:
         parser = argparse.ArgumentParser()
         parser.add_argument('--port', type=int, default=5000)
-        parser.add_argument('--testing', type=bool, default=False)
+        parser.add_argument('--testing', action='store_true')
 
         args = parser.parse_args()
 

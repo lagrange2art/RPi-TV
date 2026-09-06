@@ -1,11 +1,11 @@
 
 
 class LedStrip:
-    def __init__(self, testing=False, count=219, brightness=1):
+    def __init__(self, testing=False, count=219, brightness=1.0):
         self.testing = testing
 
         if testing:
-            self._strip = FakeLedStrip(count)
+            self._strip = FakeLedStrip(count, brightness)
             return
 
         try:
@@ -23,6 +23,16 @@ class LedStrip:
             auto_write=False,
         )
 
+    @property
+    def brightness(self):
+        return self._strip.brightness
+
+    @brightness.setter
+    def brightness(self, value):
+        if not 0 <= value <= 1:
+            raise ValueError("brightness must be between 0 and 1")
+        self._strip.brightness = value
+    
     def fill(self, color):
         self._strip.fill(color)
 
@@ -44,9 +54,10 @@ class LedStrip:
             close()
 
 class FakeLedStrip:
-    def __init__(self, count=219):
+    def __init__(self, count=219, brightness=1):
         self.count = count
         self.last_fill = None
+        self.brightness = brightness
 
     def fill(self, color):
         self.last_fill = color
@@ -106,25 +117,3 @@ class FakeADC:
 
     def close(self):
         pass
-
-# class FakeRotate:
-#     STOP_THREAD = False
-#     def __init__(self, pixels=None):
-#         self.pixels = pixels
-#     def run(self, *args, **kwargs):
-#         return None
-
-
-# class FakeStrobo(FakeRotate):
-#     pass
-
-
-# class FakeAudioVisual:
-#     STOP_THREAD = False
-#     def __init__(self, adc=None, pixels=None):
-#         self.adc = adc
-#         self.pixels = pixels
-#     def __call__(self, *args, **kwargs):
-#         return NotImplementedError("FakeAudioVisual is not implemented")
-#     def run(self, *args, **kwargs):
-#         return None
