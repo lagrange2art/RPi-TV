@@ -54,7 +54,7 @@ class LedStrip:
             close()
 
 class FakeLedStrip:
-    def __init__(self, count=219, brightness=1):
+    def __init__(self, count=219, brightness=1.0):
         self.count = count
         self.last_fill = None
         self.brightness = brightness

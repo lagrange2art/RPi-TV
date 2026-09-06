@@ -1,5 +1,7 @@
 """ Animation for led strip on D10. """
 
+import logging
+
 from rpitv.rpi_wrapper import LedStrip
 import threading 
 
@@ -10,6 +12,9 @@ from matplotlib.colors import Normalize
 import numpy as np
 
 import time
+
+
+logger = logging.getLogger(__name__)
 
 
 class Rotate:
@@ -33,7 +38,7 @@ class Rotate:
             self.pixels.show()
             
             if self.STOP_THREAD:
-                print('turn off leds')
+                logger.info('Turning off LEDs after rotation')
                 self.pixels.fill((0,0,0))
                 self.pixels.show()
                 break
@@ -81,10 +86,10 @@ class Strobo:
             time.sleep(0.03)
             i += 1
             if self.STOP_THREAD:
-                print('turn off leds')
+                logger.info('Turning off LEDs after strobe')
                 self.pixels.fill((0,0,0))
                 self.pixels.show()
-                print('%d flashes in %.2f sec' % (i, time.time() - start))
+                logger.info('%d flashes in %.2f sec', i, time.time() - start)
                 break
         
 def animate_strobo():

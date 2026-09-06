@@ -5,7 +5,7 @@ Run your local webapp server to fully control rgb Leds in the back of your TV! Y
 ![introduction](images/rpitv_animation.gif)
 
 ## Deploy service on RPI
-`bash deploy.sh` 
+`./install-rpitv.sh -H {USER@IP-ADDRESS-OF-RPI}` 
 
 ## Return status of service running on RPI
 - via ssh: `ssh rptiv "systemctl status rpitv"`
