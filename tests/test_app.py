@@ -67,3 +67,24 @@ def test_adjust_brightness(brightness):
         assert rpitv.pixels.brightness == brightness
     finally:
         rpitv.close()
+
+
+def test_logs_route(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    log_file = tmp_path / "logs" / "rpitv.log"
+    log_file.parent.mkdir()
+    log_file.write_text("INFO test: \033[36mGET /static/style.css HTTP/1.1\033[0m\n")
+
+    rpitv = RPiTV(
+        Flask("rpitv.start_app"),
+        testing=True,
+    )
+    try:
+        response = rpitv.app.test_client().get("/logs")
+
+        assert response.status_code == 200
+        assert b"GET /static/style.css HTTP/1.1" in response.data
+        assert b"style=" in response.data
+        assert b"\x1b" not in response.data
+    finally:
+        rpitv.close()

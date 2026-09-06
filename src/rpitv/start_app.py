@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 """ https://projects.raspberrypi.org/en/projects/python-web-server-with-flask/1
 this is run at startup using systemd. Created file /lib/systemd/system/rpitv.service
 essentially with content python /home/pi/Documents/webapp/app.py. 
@@ -6,6 +7,7 @@ If it works, then stop service: sudo systemctl stop rpitv.service
 Enable service to run on startup: sudo systemctl enable rpitv.service
 """
 import argparse
+import logging
 import numpy as np
 from matplotlib.pyplot import get_cmap
 from matplotlib import cm
@@ -17,6 +19,11 @@ import threading
 
 from rpitv.pixelmotion import Rotate, Strobo
 from rpitv.pixelaudio import AudioVisual
+from rpitv.logger import (
+    LOG_PATH,
+    ansi_to_html,
+    configure_logging,
+)
 
 
 
@@ -27,6 +34,9 @@ from rpitv.rpi_wrapper import (
     # FakeStrobo,
     # FakeAudioVisual,
 )
+
+
+logger = logging.getLogger(__name__)
 
 
 class RPiTV:
@@ -50,6 +60,7 @@ class RPiTV:
         self.add_endpoint('/animation/', 'animation', self.animation)
         self.add_endpoint('/animation/strobo/', 'strobo', self.strobo_mode)
         self.add_endpoint('/audiovisual/<method>', 'audiovisual', self.audiovis, methods=['GET'])
+        self.add_endpoint('/logs', 'logs', self.logs, methods=['GET'])
 
     def add_endpoint(self, endpoint=None, endpoint_name=None, handler=None, methods=['GET'], *args, **kwargs):
         self.app.add_url_rule(endpoint, endpoint_name, handler, methods=methods, *args, **kwargs)
@@ -116,11 +127,15 @@ class RPiTV:
         return render_template('animation.html')
 
     def audiovis(self, method='ladder'):
-        print(type(method))
+        logger.info("Starting audiovisual mode: %s", method)
         thread = threading.Thread(target=self.audiovisual.run, args=(method,))
         self.audiovisual.STOP_THREAD = False
         thread.start()
         return render_template('audiovisual.html', name=method)
+
+    def logs(self):
+        log_content = LOG_PATH.read_text() if LOG_PATH.exists() else "No log entries yet."
+        return render_template('logs.html', log_content=ansi_to_html(log_content))
 
     def close(self):
             self.rotate.STOP_THREAD = True
@@ -140,6 +155,9 @@ def main(args=None) -> None:
         parser.add_argument('--testing', action='store_true')
 
         args = parser.parse_args()
+
+    configure_logging()
+    logger.info("Starting rpitv on port %s", args.port)
 
     rpitv = RPiTV(
         Flask(__name__),
