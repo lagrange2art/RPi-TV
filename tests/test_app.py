@@ -17,7 +17,7 @@ def test_create_app():
         brightness=0.5,
         testing=True,
     )    
-    assert rpitv.brightness == 0.5
+    assert rpitv.pixels.brightness == 0.5
     assert rpitv.pixels is not None
     assert rpitv.adc is not None
     assert rpitv.rotate is not None
@@ -45,5 +45,25 @@ def test_app_route(route):
         client = rpitv.app.test_client()
         response = client.get(route)
         assert response.status_code == 200
+    finally:
+        rpitv.close()
+
+
+@pytest.mark.parametrize("brightness", [0, 0.25, 1])
+def test_adjust_brightness(brightness):
+    rpitv = RPiTV(
+        Flask("rpitv.start_app"),
+        brightness=0.5,
+        testing=True,
+    )
+    try:
+        client = rpitv.app.test_client()
+        response = client.post(
+            "/fillstrip/255,128,64",
+            data={"Brightness": brightness},
+        )
+
+        assert response.status_code == 200
+        assert rpitv.pixels.brightness == brightness
     finally:
         rpitv.close()
