@@ -1,15 +1,14 @@
-<html>
+<!doctype html>
+<html lang="en">
 <head>
-    <link rel='stylesheet' href='/static/style.css' />
-    <meta name='viewport' content='width=device-width, initial-scale=1.0'>
-<style id='compiled-css' type='text/css'>
-</style>
+                <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <title>Animation / RPI TV</title>
 </head>
-
-        <body>
-                <h1>Animation</h1>
-        </body>
-<body> <a href="/animation/">rotate</a> </body><br>
-<body> <a href="/animation/strobo/">strobo</a> </body><br><br>
-<body> <a href="/">back</a> </body>
+<body>
+        <main class="app-shell">
+                <header class="page-header"><div><p class="eyebrow">03 / Motion control</p><h1>ANIMATION</h1><p>Choose a pattern for the strip to carry through the room.</p></div><a class="back-link" href="/">Back to control</a></header>
+                <section class="panel"><div class="mode-links"><a href="/animation/">Rotate spectrum</a><a href="/animation/strobo/">Strobo pulse</a></div></section>
+        </main>
+</body>
 </html>

@@ -1,7 +1,8 @@
 <html>
 <head>
-    <link rel='stylesheet' href='/static/style.css' />
-    <meta name='viewport' content='width=device-width, initial-scale=1.0'>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Fill strip / RPI TV</title>
 <style id='compiled-css' type='text/css'>
 .wrapper {
   display: flex;
@@ -62,51 +63,63 @@
 
 </style>
 </head>
-<h1> Light up led strip </h1>
-<h0>  To light up led strip open URL /fillstrip/rgb where rgb is a comma seperated list of 3 integers between 0 and 255. Current choice is rgb={{ name }}. Color looks as follows:</h0>
-</body>
-<div class="w1-center" style="line-height:70px;color:white;font-size:20px;font-weight:bold;font-family:Consolas, 'Courier New', Courier, monospace">
-  <div style="background-color:rgb({{ name }});margin:20px 0;">.</div>
+<body>
+<main class="app-shell">
+<header class="page-header">
+  <div>
+    <p class="eyebrow">01 / Strip control</p>
+    <h1>FILL STRIP</h1>
+    <p>Set a color for the entire strip. Current signal: <strong>{{ name }}</strong></p>
+    <form action="{{ name }}" method="POST">
+      <label for="brightness">Brightness</label>
+
+      <input
+        id="brightness"
+        type="range"
+        name="Brightness"
+        min="0"
+        max="1"
+        step="0.01"
+        value="{{ brightness }}"
+        oninput="brightnessValue.value = this.value"
+        onchange="this.form.submit()"
+      >
+
+      <output id="brightnessValue">{{ brightness }}</output>
+    </form>
+  </div>
+  <a class="back-link" href="/">Back to control</a>
+</header>
+<section class="panel">
+<div class="wrapper">
+  <h2>Current output</h2>
+  <div class="box" style="background: rgb({{ name }})"></div>
 </div>
 
 
 <div class="wrapper">
   <a href='/fillstrip/0,0,0'><div class="box off"></div></a>
   <a href='/fillstrip/255,255,255'><div class="box white"></div></a>
-</div>
-<div class="wrapper"> 
   <a href='/fillstrip/255,51,51'><div class="box g00"></div></a>
   <a href='/fillstrip/255,153,51'><div class="box g01"></div></a>
   <a href='/fillstrip/255,255,0'><div class="box g02"></div></a>
   <a href='/fillstrip/128,255,0'><div class="box g03"></div></a>
-</div>
-<div class="wrapper">
   <a href='/fillstrip/0,255,0'><div class="box g10"></div></a>
   <a href='/fillstrip/0,255,128'><div class="box g11"></div></a>
   <a href='/fillstrip/0,255,255'><div class="box g12"></div></a>
   <a href='/fillstrip/0,128,255'><div class="box g13"></div></a>
-</div>
-<div class="wrapper">
   <a href='/fillstrip/0,0,255'><div class="box g20"></div></a>
   <a href='/fillstrip/127,0,255'><div class="box g21"></div></a>
   <a href='/fillstrip/255,0,255'><div class="box g22"></div></a>
   <a href='/fillstrip/255,0,127'><div class="box g23"></div></a>
-</div>
-<div class="wrapper">
   <a href="/fillstrip/255,128,128"><div class="box" style="background: rgb(255,128,128)"></div></a>
   <a href="/fillstrip/255,200,128"><div class="box" style="background: rgb(255,200,128)"></div></a>
   <a href="/fillstrip/128,255,128"><div class="box" style="background: rgb(128,255,128)"></div></a>
   <a href="/fillstrip/128,200,255"><div class="box" style="background: rgb(128,200,255)"></div></a>
-</div>
-
-<div class="wrapper">
   <a href="/fillstrip/128,0,0"><div class="box" style="background: rgb(128,0,0)"></div></a>
   <a href="/fillstrip/128,64,0"><div class="box" style="background: rgb(128,64,0)"></div></a>
   <a href="/fillstrip/0,128,64"><div class="box" style="background: rgb(0,128,64)"></div></a>
   <a href="/fillstrip/0,64,128"><div class="box" style="background: rgb(0,64,128)"></div></a>
-</div>
-
-<div class="wrapper">
   <a href="/fillstrip/255,128,0"><div class="box" style="background: rgb(255,128,0)"></div></a>
   <a href="/fillstrip/200,80,0"><div class="box" style="background: rgb(200,80,0)"></div></a>
   <a href="/fillstrip/128,64,128"><div class="box" style="background: rgb(128,64,128)"></div></a>
@@ -130,30 +143,7 @@ function applyColor() {
 }
 </script>
 
-<!-- Brightness -->
-<!-- <form action="{{ name }}" method = "POST">
-    <p>
-        Brightness <input type="number" step="0.01" min="0" max="1" name = "Brightness" style="width: 60px;" required /> 
-        <input type = "submit" value = "update" />
-    </p>
-</form> -->
-<form action="{{ name }}" method="POST">
-  <label for="brightness">Brightness</label>
-
-  <input
-    id="brightness"
-    type="range"
-    name="Brightness"
-    min="0"
-    max="1"
-    step="0.01"
-    value="{{ brightness }}"
-    oninput="brightnessValue.value = this.value"
-    onchange="this.form.submit()"
-  >
-
-  <output id="brightnessValue">{{ brightness }}</output>
-</form>
-
-<body> <a href="/">back</a> </body>
+</section>
+</main>
+</body>
 </html>

@@ -1,16 +1,15 @@
-<html>
+<!doctype html>
+<html lang="en">
 <head>
-    <link rel='stylesheet' href='/static/style.css' />
-    <meta name='viewport' content='width=device-width, initial-scale=1.0'>
-<style id='compiled-css' type='text/css'>
-</style>
+                <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <title>Audiovisual / RPI TV</title>
 </head>
-
-        <body>
-                <h1>Audiovisual</h1>
-        </body>
-<body> <a href="/audiovisual/ladder">ladder</a> </body><br>
-<body> <a href="/audiovisual/pulse">pulse</a> </body><br><br>
-<body> <a href="/">back</a> </body>
+<body>
+        <main class="app-shell">
+                <header class="page-header"><div><p class="eyebrow">04 / Audio reactive</p><h1>AUDIOVISUAL</h1><p>Let the signal decide how the light moves.</p></div><a class="back-link" href="/">Back to control</a></header>
+                <section class="panel"><div class="mode-links"><a href="/audiovisual/ladder">Ladder response</a><a href="/audiovisual/pulse">Pulse response</a></div></section>
+        </main>
+</body>
 </html>
 
