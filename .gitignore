@@ -1,2 +1,13 @@
 *.svg
+.DS_Store
 
+*.egg-info/
+.vscode
+.pytest_cache
+__pycache__/
+.venv/
+venv/
+build/
+dist/
+.coverage
+htmlcov/
