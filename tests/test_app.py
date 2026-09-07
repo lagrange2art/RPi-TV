@@ -49,7 +49,7 @@ def test_app_route(route):
         rpitv.close()
 
 
-@pytest.mark.parametrize("brightness", [0, 0.25, 1])
+@pytest.mark.parametrize("brightness", [0, 0.25, 0.5, 0.825, 1])
 def test_adjust_brightness(brightness):
     rpitv = RPiTV(
         Flask("rpitv.start_app"),
