@@ -28,17 +28,16 @@ class Rotate:
         
         self.pixels[:] = colors
         self.pixels.show()
-        colors_new = colors
+        # start = time.time()
+        # i = 0   # count animations
         while True:
-            #colors = np.vstack((colors[-step:,:], colors[:-step,:]))
-            colors_new[:step,:] = colors[-step:,:]
-            colors_new[step:,:] = colors[:-step,:]
-            colors = colors_new
-            self.pixels[:] = colors
+            self.pixels[:] =  self.pixels[-step:] + self.pixels[:-step]
             self.pixels.show()
-            
+            # i += 1
             if self.STOP_THREAD:
                 logger.info('Turning off LEDs after rotation')
+                # time_delta = time.time() - start
+                # logger.info(f'{i} animations in {time_delta:.2f} sec ({i/time_delta:.2f} animations/sec)')
                 self.pixels.fill((0,0,0))
                 self.pixels.show()
                 break
