@@ -42,6 +42,9 @@ class LedStrip:
     def __len__(self):
         return len(self._strip)
 
+    def __getitem__(self, key):
+        return self._strip[key]
+
     def __setitem__(self, key, value):
         self._strip[key] = value
 
@@ -56,21 +59,28 @@ class LedStrip:
 class FakeLedStrip:
     def __init__(self, count=219, brightness=1.0):
         self.count = count
-        self.last_fill = None
         self.brightness = brightness
+        self._pixels = [(0, 0, 0)] * count
+
+    def __getitem__(self, key):
+        return self._pixels[key]
+
+    def __setitem__(self, key, value):
+        if isinstance(key, slice):
+            indices = range(*key.indices(self.count))
+            for index in indices:
+                self._pixels[index] = value
+        else:
+            self._pixels[key] = value
 
     def fill(self, color):
-        self.last_fill = color
+        self._pixels[:] = [color] * self.count
 
     def show(self):
         pass
 
     def __len__(self):
         return self.count
-
-    def __setitem__(self, key, value):
-        pass
-
 
 
 class ADC:
