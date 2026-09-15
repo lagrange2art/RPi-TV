@@ -7,7 +7,17 @@
 </head>
 <body>
   <main class="app-shell">
-    <header class="page-header"><div><p class="eyebrow">System monitor</p><h1>LOG STREAM</h1><p>Recent events from the RPI TV control service.</p></div><a class="back-link" href="/">Back to control</a></header>
+    <header class="page-header">
+      <div>
+        <p class="eyebrow">System monitor</p>
+        <h1>LOG STREAM</h1>
+        <p>Recent events from the RPI TV control service.</p>
+      </div>
+      <div class="mode-links">
+        <a href="/logs/benchmark/">Run Benchmark</a>
+        <a class="back-link" href="/">Back to control</a>
+      </div>
+    </header>
     <section class="panel"><pre>{{ log_content|safe }}</pre></section>
   </main>
 </body>
