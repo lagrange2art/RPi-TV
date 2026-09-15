@@ -1,7 +1,9 @@
 
 
+NUM_LEDS = 219
+
 class LedStrip:
-    def __init__(self, testing=False, count=219, brightness=1.0):
+    def __init__(self, testing=False, count=NUM_LEDS, brightness=1.0):
         self.testing = testing
 
         if testing:

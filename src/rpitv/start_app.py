@@ -61,6 +61,7 @@ class RPiTV:
         self.add_endpoint('/animation/strobo/', 'strobo', self.strobo_mode)
         self.add_endpoint('/audiovisual/<method>', 'audiovisual', self.audiovis, methods=['GET'])
         self.add_endpoint('/logs', 'logs', self.logs, methods=['GET'])
+        self.add_endpoint('/logs/benchmark/', 'benchmark', self.benchmark)
 
     def add_endpoint(self, endpoint=None, endpoint_name=None, handler=None, methods=['GET'], *args, **kwargs):
         self.app.add_url_rule(endpoint, endpoint_name, handler, methods=methods, *args, **kwargs)
@@ -134,6 +135,20 @@ class RPiTV:
         return render_template('audiovisual.html', name=method)
 
     def logs(self):
+        log_content = LOG_PATH.read_text() if LOG_PATH.exists() else "No log entries yet."
+        return render_template('logs.html', log_content=ansi_to_html(log_content))
+
+    def benchmark(self):
+        """ benchmark the led strip by running a simple animation and measuring the time taken """
+        import time
+        iterations = 1000
+        start_time = time.time()
+        for _ in range(iterations):
+            self.pixels.fill((0, 0, 0))
+            self.pixels.show()
+
+        elapsed_time = time.time() - start_time
+        logger.info(f'Benchmark completed {iterations} animations in {elapsed_time:.2f} sec ==> {elapsed_time/iterations/len(self.pixels)*1000:.5f} milliseconds/(led * animation)')
         log_content = LOG_PATH.read_text() if LOG_PATH.exists() else "No log entries yet."
         return render_template('logs.html', log_content=ansi_to_html(log_content))
 
