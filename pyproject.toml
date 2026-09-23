@@ -12,6 +12,7 @@ dependencies = [
   "numpy",
   "matplotlib",
   "ansi2html",
+  "pyserial",
   "pytest",
   "pytest-cov",
 ]

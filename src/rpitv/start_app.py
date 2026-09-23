@@ -40,10 +40,15 @@ logger = logging.getLogger(__name__)
 
 
 class RPiTV:
-    def __init__(self, app, brightness=0.5, testing: bool=False):
+    def __init__(self, app, brightness=0.5, testing: bool=False, hardware: str = "rpi"):
         self.app = app
-        adc = ADC(testing=testing)
-        pixels = LedStrip(testing=testing, brightness=brightness)
+        try:
+            adc = ADC(testing=testing)
+        except RuntimeError as e:
+            logger.error("Failed to initialize ADC: %s", e)
+            adc = ADC(testing=True)  # Fallback to testing mode if ADC initialization fails
+
+        pixels = LedStrip(testing=testing, brightness=brightness, hardware=hardware)
         rotate = Rotate(pixels)
         strobo = Strobo(pixels)
         audiovisual = AudioVisual(adc, pixels)
@@ -167,6 +172,7 @@ def main(args=None) -> None:
     if args is None:
         parser = argparse.ArgumentParser()
         parser.add_argument('--port', type=int, default=5000)
+        parser.add_argument('--hardware', default="arduino", choices=['rpi', 'arduino'], help='Specify the hardware to use: rpi or arduino')
         parser.add_argument('--testing', action='store_true')
 
         args = parser.parse_args()
@@ -177,6 +183,7 @@ def main(args=None) -> None:
     rpitv = RPiTV(
         Flask(__name__),
         brightness=0.5,
+        hardware=args.hardware,
         testing=args.testing,
     )
     try:

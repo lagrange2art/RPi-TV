@@ -1,11 +1,19 @@
 import pytest
 from rpitv.rpi_wrapper import FakeLedStrip, LedStrip
+import numpy as np
 
-
-def test_led_strip():
+@pytest.mark.parametrize("hardware", [
+    "testing",
+    "arduino",
+])
+def test_led_strip(hardware):
     count = 10
     brightness = 0.5
-    strip = LedStrip(testing=True, count=count, brightness=brightness)
+    if hardware == "testing":
+        strip = LedStrip(testing=True, count=count, brightness=brightness)
+
+    else:
+        strip = LedStrip(testing=False, count=count, brightness=brightness, hardware=hardware)
 
     assert len(strip) == count
     assert strip.brightness == brightness
@@ -26,6 +34,30 @@ def test_led_strip():
     new_brightness = 0.8
     strip.brightness = new_brightness
     assert strip.brightness == new_brightness
+
+    # Test show method (should not raise any exceptions)
+    strip.show()
+
+
+@pytest.mark.parametrize("hardware", [
+    "testing",
+    "arduino",
+])
+def test_led_strip_slicing(hardware:str):
+    count = 10
+    brightness = 0.5
+
+    if hardware == "testing":
+        strip = LedStrip(testing=True, count=count, brightness=brightness)
+
+    else:
+        strip = LedStrip(testing=False, count=count, brightness=brightness, hardware=hardware)
+
+     # test slicing
+    colors = [[255,0,0],[255,0,255],[255,255,0]]
+    colors = np.array(colors + [[0,0,0]]*(count - 3))   
+    assert len(colors) == len(strip)
+    strip[:] = colors
 
     # Test show method (should not raise any exceptions)
     strip.show()
