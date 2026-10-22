@@ -30,7 +30,7 @@ from rpitv.logger import (
 from rpitv.rpi_wrapper import (
     LedStrip,
     ADC,
-    PiCamera,
+    # PiCamera,
     # FakeRotate,
     # FakeStrobo,
     # FakeAudioVisual,
