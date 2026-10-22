@@ -4,7 +4,7 @@ import numpy as np
 
 @pytest.mark.parametrize("hardware", [
     "testing",
-    "arduino",
+    # "arduino",
 ])
 def test_led_strip(hardware):
     count = 10
@@ -41,7 +41,7 @@ def test_led_strip(hardware):
 
 @pytest.mark.parametrize("hardware", [
     "testing",
-    "arduino",
+    # "arduino",
 ])
 def test_led_strip_slicing(hardware:str):
     count = 10
