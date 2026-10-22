@@ -107,8 +107,9 @@ After=network.target
 
 [Service]
 WorkingDirectory=${APP_DIR}
-#ExecStart=${PYTHON_BIN} ${APP_DIR}/src/rpitv/start_app.py
 ExecStart=${PYTHON_BIN} -m rpitv.start_app
+ExecStop=/bin/kill -s SIGTERM $MAINPID
+TimeoutStopSec=30
 Restart=always
 User=${APP_USER}
 

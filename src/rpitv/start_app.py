@@ -8,15 +8,17 @@ Enable service to run on startup: sudo systemctl enable rpitv.service
 """
 import argparse
 import logging
+import os
+import signal
 import numpy as np
 from matplotlib.pyplot import get_cmap
 from matplotlib import cm
 from matplotlib.colors import Normalize
 
 
-from flask import Flask, render_template, request
+from flask import Flask, Response, render_template, request
 import threading 
-
+import time
 from rpitv.pixelmotion import Rotate, Strobo
 from rpitv.pixelaudio import AudioVisual
 from rpitv.logger import (
@@ -25,25 +27,29 @@ from rpitv.logger import (
     configure_logging,
 )
 
-
-
 from rpitv.rpi_wrapper import (
     LedStrip,
     ADC,
+    # PiCamera,
     # FakeRotate,
     # FakeStrobo,
     # FakeAudioVisual,
 )
-
+# from rpitv.ambilight import Ambilight
 
 logger = logging.getLogger(__name__)
 
 
 class RPiTV:
-    def __init__(self, app, brightness=0.5, testing: bool=False):
+    def __init__(self, app, brightness=0.5, testing: bool=False, hardware: str = "rpi"):
         self.app = app
-        adc = ADC(testing=testing)
-        pixels = LedStrip(testing=testing, brightness=brightness)
+        try:
+            adc = ADC(testing=testing)
+        except RuntimeError as e:
+            logger.error("Failed to initialize ADC: %s", e)
+            adc = ADC(testing=True)  # Fallback to testing mode if ADC initialization fails
+
+        pixels = LedStrip(testing=testing, brightness=brightness, hardware=hardware)
         rotate = Rotate(pixels)
         strobo = Strobo(pixels)
         audiovisual = AudioVisual(adc, pixels)
@@ -55,6 +61,7 @@ class RPiTV:
         self.audiovisual = audiovisual
 
         self.add_endpoint('/', '', self.index, methods=['GET'])
+        self.add_endpoint('/restart', 'restart_server', self.restart_server, methods=['POST'])
         self.add_endpoint('/fillstrip/<rgb>', 'fillstrip', self.fillstrip, methods=['GET'])
         self.add_endpoint('/fillstrip/<rgb>', 'setbrightness', self.set_brightness, methods=['POST', 'GET'])
         self.add_endpoint('/animation/', 'animation', self.animation)
@@ -68,6 +75,17 @@ class RPiTV:
     
     def run(self, **kwargs):
         self.app.run(**kwargs)
+
+    def restart_server(self):
+        logger.info("Server restart requested")
+
+        def terminate_process():
+            os.kill(os.getpid(), signal.SIGTERM)
+
+        restart_timer = threading.Timer(1.0, terminate_process)
+        restart_timer.daemon = True
+        restart_timer.start()
+        return "Restarting the server...", 202
         
 
     def index(self):
@@ -107,9 +125,9 @@ class RPiTV:
         return self.fillstrip(rgb)
 
 
-    def animation(self):
+    def animation(self, cmap_name='hsv'):
         length = len(self.pixels)
-        cmap = get_cmap('hsv')#'plasma')#viridis')#spring')#twilight')#
+        cmap = get_cmap(cmap_name)#'plasma')#viridis')#spring')#twilight')#
         norm = Normalize(vmin=0, vmax=length)
         scalarMap = cm.ScalarMappable(norm=norm, cmap=cmap)
         colors = ((scalarMap.to_rgba(np.arange(length))*255)[:,:3]).astype(int)      
@@ -153,20 +171,24 @@ class RPiTV:
         return render_template('logs.html', log_content=ansi_to_html(log_content))
 
     def close(self):
-            self.rotate.STOP_THREAD = True
-            self.strobo.STOP_THREAD = True
-            self.audiovisual.STOP_THREAD = True
+        if self._closed:
+            return
 
-            # for thread in self.threads:
-            #     thread.join(timeout=2)
+        self._closed = True
+        logger.info("Closing rpitv")
+        self.rotate.STOP_THREAD = True
+        self.strobo.STOP_THREAD = True
+        self.audiovisual.STOP_THREAD = True
+        self.ambilight.STOP_THREAD = True
+        self.adc.close()
+        self.pixels.close()
 
-            self.adc.close()
-            self.pixels.close()
 
 def main(args=None) -> None:
     if args is None:
         parser = argparse.ArgumentParser()
         parser.add_argument('--port', type=int, default=5000)
+        parser.add_argument('--hardware', default="arduino", choices=['rpi', 'arduino'], help='Specify the hardware to use: rpi or arduino')
         parser.add_argument('--testing', action='store_true')
 
         args = parser.parse_args()
@@ -177,8 +199,18 @@ def main(args=None) -> None:
     rpitv = RPiTV(
         Flask(__name__),
         brightness=0.5,
+        hardware=args.hardware,
         testing=args.testing,
     )
+
+    def handle_shutdown(signum, frame):
+        logger.info("Received shutdown signal %s", signum)
+        rpitv.close()
+        raise SystemExit(0)
+
+    signal.signal(signal.SIGTERM, handle_shutdown)
+    signal.signal(signal.SIGINT, handle_shutdown)
+
     try:
         rpitv.run(debug=False, host='0.0.0.0', port=args.port)
     finally:
