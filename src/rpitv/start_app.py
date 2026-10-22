@@ -35,7 +35,7 @@ from rpitv.rpi_wrapper import (
     # FakeStrobo,
     # FakeAudioVisual,
 )
-from rpitv.ambilight import Ambilight
+# from rpitv.ambilight import Ambilight
 
 logger = logging.getLogger(__name__)
 
