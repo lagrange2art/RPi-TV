@@ -1,3 +1,4 @@
+import numpy as np
 import logging
 logger = logging.getLogger(__name__)
 
@@ -91,21 +92,24 @@ class FakeLedStrip:
         """Allows setting colors via pixel[index] = (R, G, B)"""
         if isinstance(index, slice):
             start, stop, step = index.indices(self.count)
-            indices = list(range(start, stop, step))
+            target_count = len(range(start, stop, step))
             values = list(val) if hasattr(val, "__iter__") else None
 
             if (
                 values is not None
-                and len(values) == len(indices)
-                and all(hasattr(value, "__iter__") for value in values)
+                and len(values) == target_count
+                and all(map(lambda value: hasattr(value, "__iter__"), values))
             ):
-                for pixel_index, value in zip(indices, values):
-                    self._pixels[pixel_index] = value
+                self._pixels[index] = values
+            elif len(val) == 3:
+                self._pixels[index] = [val] * target_count
             else:
-                for pixel_index in indices:
-                    self._pixels[pixel_index] = val
+                raise IndexError(f"Cannot set {len(val)} rgb values to strip of length {self.count}")
         else:
-            if 0 <= index < self.count:
+            if index < 0:
+                self._pixels[index + self.count] = val
+
+            elif 0 <= index < self.count:
                 self._pixels[index] = val
             else:
                 raise IndexError("LED index out of range")

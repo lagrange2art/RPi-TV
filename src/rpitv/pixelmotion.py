@@ -10,7 +10,7 @@ from matplotlib.pyplot import get_cmap
 from matplotlib import cm
 from matplotlib.colors import Normalize
 import numpy as np
-
+from rpitv.rpi_wrapper import LedStrip
 import time
 
 
@@ -19,23 +19,25 @@ logger = logging.getLogger(__name__)
 
 class Rotate:
     """ rotate a given led picture. colors is a 2d array of rgb values for each led. In each iteration move rgb values and update pixels. step specifies how far the values are moved to the left """    
-    def __init__(self, pixels):
+    def __init__(self, pixels:LedStrip):
         """ rotate a given led picture. colors is a 2d array of rgb values for each led. In each iteration move rgb values and update pixels. step specifies how far the values are moved to the left """    
         self.pixels = pixels
         self.STOP_THREAD = False
     
     def run(self, colors, step=1):
-        
-        self.pixels[:] = colors
+        frame = np.asarray(colors)
+        self.pixels[:] = frame
         self.pixels.show()
         # start = time.time()
         # i = 0   # count animations
+        logger.info('Start Rotate')
         while True:
-            self.pixels[:] =  self.pixels[-step:] + self.pixels[:-step]
+            frame = np.roll(frame, step, axis=0)
+            self.pixels[:] = frame
             self.pixels.show()
             # i += 1
             if self.STOP_THREAD:
-                logger.info('Turning off LEDs after rotation')
+                logger.info('Stop Rotate')
                 # time_delta = time.time() - start
                 # logger.info(f'{i} animations in {time_delta:.2f} sec ({i/time_delta:.2f} animations/sec)')
                 self.pixels.fill((0,0,0))
@@ -75,6 +77,7 @@ class Strobo:
     def run(self, color=[255,255,255]):
         start = time.time()
         i = 0   # count flashes, there should be 10-12 per second for strobo effect
+        logger.info('Start Strobo')
         while True:
             #time.sleep(0.5)
             self.pixels.fill(color)
@@ -85,7 +88,7 @@ class Strobo:
             time.sleep(0.03)
             i += 1
             if self.STOP_THREAD:
-                logger.info('Turning off LEDs after strobe')
+                logger.info('Stop Strobo')
                 self.pixels.fill((0,0,0))
                 self.pixels.show()
                 logger.info('%d flashes in %.2f sec', i, time.time() - start)

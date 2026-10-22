@@ -125,9 +125,9 @@ class RPiTV:
         return self.fillstrip(rgb)
 
 
-    def animation(self):
+    def animation(self, cmap_name='hsv'):
         length = len(self.pixels)
-        cmap = get_cmap('hsv')#'plasma')#viridis')#spring')#twilight')#
+        cmap = get_cmap(cmap_name)#'plasma')#viridis')#spring')#twilight')#
         norm = Normalize(vmin=0, vmax=length)
         scalarMap = cm.ScalarMappable(norm=norm, cmap=cmap)
         colors = ((scalarMap.to_rgba(np.arange(length))*255)[:,:3]).astype(int)      

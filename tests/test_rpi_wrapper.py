@@ -61,3 +61,15 @@ def test_led_strip_slicing(hardware:str):
 
     # Test show method (should not raise any exceptions)
     strip.show()
+
+def test_arduino_strip_too_many_values_to_unpack():
+    count = 219
+    values = 220
+    strip = LedStrip(testing=True, count=count, hardware="arduino")
+
+    colors = [[0,0,0]]*(values)
+    with pytest.raises(IndexError) as error:
+        strip[:] = colors
+        strip.show()
+    assert f"Cannot set {values} rgb values to strip of length {count}" in str(error) 
+
