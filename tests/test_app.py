@@ -1,4 +1,7 @@
 import pytest
+import os
+import signal
+import threading
 
 from rpitv.start_app import (
     RPiTV,
@@ -23,6 +26,59 @@ def test_create_app():
     assert rpitv.rotate is not None
     assert rpitv.strobo is not None
     assert rpitv.audiovisual is not None
+
+
+def test_restart_server_schedules_sigterm_and_returns_accepted(monkeypatch):
+    scheduled = {}
+    sent_signals = []
+
+    class ImmediateTimer:
+        def __init__(self, interval, function):
+            scheduled["interval"] = interval
+            scheduled["function"] = function
+
+        def start(self):
+            scheduled["started"] = True
+
+    monkeypatch.setattr("rpitv.start_app.threading.Timer", ImmediateTimer)
+    monkeypatch.setattr(
+        "rpitv.start_app.os.kill",
+        lambda process_id, signum: sent_signals.append((process_id, signum)),
+    )
+    rpitv = RPiTV(Flask("rpitv.start_app"), testing=True)
+    try:
+        response = rpitv.app.test_client().post("/restart")
+
+        assert response.status_code == 202
+        assert b"Restarting the server" in response.data
+        assert scheduled["interval"] == 1.0
+        assert scheduled["started"]
+        scheduled["function"]()
+        assert sent_signals == [(os.getpid(), signal.SIGTERM)]
+    finally:
+        rpitv.close()
+
+
+def test_restart_server_requires_post():
+    rpitv = RPiTV(Flask("rpitv.start_app"), testing=True)
+    try:
+        response = rpitv.app.test_client().get("/restart")
+
+        assert response.status_code == 405
+    finally:
+        rpitv.close()
+
+
+def test_index_page_contains_restart_button():
+    rpitv = RPiTV(Flask("rpitv.start_app"), testing=True)
+    try:
+        response = rpitv.app.test_client().get("/")
+
+        assert response.status_code == 200
+        assert b'action="/restart" method="post"' in response.data
+        assert b"Restart Flask server" in response.data
+    finally:
+        rpitv.close()
 
 @pytest.mark.parametrize(
     "route", [

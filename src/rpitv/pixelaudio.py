@@ -1,8 +1,6 @@
 """ first test with led strip. Test for led strip with 60 led. Chose a particular led and pick r,g,b values to light up the specific led. \n ctrl-c to exit program and turn off led strip \n"""
 
 
-
-import sys
 import threading
 
 from rpitv.pixelmotion import fill_section  # has global variables: length and 
@@ -19,7 +17,9 @@ import numpy as np
 
 import time
 
+import logging
 
+logger = logging.getLogger(__name__)
 
 
 class AudioVisual:
@@ -47,6 +47,7 @@ class AudioVisual:
         dt = (t[-1] - t[0])/sampsize     # times should be equidistant
         freq = np.fft.rfftfreq(sampsize, d=dt)   # get possible frequencies for signal
         maxled_old = 0
+        logger.info(f"Start AudioVisual method={method}")
         while True:
             t = t[1:] + [time.time()]
             signal = signal[1:] + [self.adc.analogRead(0)]
@@ -79,6 +80,7 @@ class AudioVisual:
                 self.pixels.show()
 
             if self.STOP_THREAD:
+                logger.info("Stop AudioVisual")
                 self.pixels.fill((0,0,0))
                 self.pixels.show()
                 break

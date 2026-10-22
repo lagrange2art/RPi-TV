@@ -8,15 +8,17 @@ Enable service to run on startup: sudo systemctl enable rpitv.service
 """
 import argparse
 import logging
+import os
+import signal
 import numpy as np
 from matplotlib.pyplot import get_cmap
 from matplotlib import cm
 from matplotlib.colors import Normalize
 
 
-from flask import Flask, render_template, request
+from flask import Flask, Response, render_template, request
 import threading 
-
+import time
 from rpitv.pixelmotion import Rotate, Strobo
 from rpitv.pixelaudio import AudioVisual
 from rpitv.logger import (
@@ -25,16 +27,15 @@ from rpitv.logger import (
     configure_logging,
 )
 
-
-
 from rpitv.rpi_wrapper import (
     LedStrip,
     ADC,
+    PiCamera,
     # FakeRotate,
     # FakeStrobo,
     # FakeAudioVisual,
 )
-
+from rpitv.ambilight import Ambilight
 
 logger = logging.getLogger(__name__)
 
@@ -60,6 +61,7 @@ class RPiTV:
         self.audiovisual = audiovisual
 
         self.add_endpoint('/', '', self.index, methods=['GET'])
+        self.add_endpoint('/restart', 'restart_server', self.restart_server, methods=['POST'])
         self.add_endpoint('/fillstrip/<rgb>', 'fillstrip', self.fillstrip, methods=['GET'])
         self.add_endpoint('/fillstrip/<rgb>', 'setbrightness', self.set_brightness, methods=['POST', 'GET'])
         self.add_endpoint('/animation/', 'animation', self.animation)
@@ -73,6 +75,17 @@ class RPiTV:
     
     def run(self, **kwargs):
         self.app.run(**kwargs)
+
+    def restart_server(self):
+        logger.info("Server restart requested")
+
+        def terminate_process():
+            os.kill(os.getpid(), signal.SIGTERM)
+
+        restart_timer = threading.Timer(1.0, terminate_process)
+        restart_timer.daemon = True
+        restart_timer.start()
+        return "Restarting the server...", 202
         
 
     def index(self):
@@ -158,15 +171,18 @@ class RPiTV:
         return render_template('logs.html', log_content=ansi_to_html(log_content))
 
     def close(self):
-            self.rotate.STOP_THREAD = True
-            self.strobo.STOP_THREAD = True
-            self.audiovisual.STOP_THREAD = True
+        if self._closed:
+            return
 
-            # for thread in self.threads:
-            #     thread.join(timeout=2)
+        self._closed = True
+        logger.info("Closing rpitv")
+        self.rotate.STOP_THREAD = True
+        self.strobo.STOP_THREAD = True
+        self.audiovisual.STOP_THREAD = True
+        self.ambilight.STOP_THREAD = True
+        self.adc.close()
+        self.pixels.close()
 
-            self.adc.close()
-            self.pixels.close()
 
 def main(args=None) -> None:
     if args is None:
@@ -186,6 +202,15 @@ def main(args=None) -> None:
         hardware=args.hardware,
         testing=args.testing,
     )
+
+    def handle_shutdown(signum, frame):
+        logger.info("Received shutdown signal %s", signum)
+        rpitv.close()
+        raise SystemExit(0)
+
+    signal.signal(signal.SIGTERM, handle_shutdown)
+    signal.signal(signal.SIGINT, handle_shutdown)
+
     try:
         rpitv.run(debug=False, host='0.0.0.0', port=args.port)
     finally:
