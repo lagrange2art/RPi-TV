@@ -288,3 +288,153 @@ class FakeADC:
 
     def close(self):
         pass
+
+
+class FakePiCamera:
+    def __init__(self):
+
+        self._rng = np.random.default_rng()
+               
+        self.exposure_speed = 0
+        self.awb_gains = (1.0, 1.0)
+        self.closed = False
+        self.resolution = (1, 1)
+        self.iso = 400
+        self.exposure_speed = 1
+        self.shutter_speed = self.exposure_speed
+        self.exposure_mode = "off"
+        self.awb_gains = None
+        self.awb_mode = "off"
+        self.vflip = True
+        self._continuous_counter = 0
+
+    
+    def capture(self,
+                output,
+                format=None,
+                use_video_port=False,
+                **kwargs
+        ):
+        """Write a black frame to an array-like capture target."""
+        import numpy as np
+        from pathlib import Path
+        if isinstance(output, np.ndarray):
+            if not format:
+                raise RuntimeError("Format must be specified when output has no filename")
+            # output[...] = self._rng.integers(
+            #     0, 256,
+            #     size=output.shape,
+            #     dtype=np.uint8,
+            # )
+            return 
+        elif isinstance(output, str):
+            Path(output).touch()
+        else:
+            raise ValueError(f"cannot interprete output type {type(output)}")
+
+    def capture_continuous(self, output, format=None, use_video_port=False, resize=None, splitter_port=0, burst=False, bayer=False, **options):
+        """
+        A dummy implementation of capture_continuous.
+        Matches the exact signature, behavior, and generator type of picamera.
+
+        Move a white box around
+        """
+        import numpy as np
+        from matplotlib.pyplot import get_cmap
+        from matplotlib import cm
+        from matplotlib.colors import Normalize
+        from matplotlib.image import imsave
+        from pathlib import Path
+        import time
+        logger.info("Stream fake video")
+        if not isinstance(output, np.ndarray):
+            raise ValueError("FakePiCamera.capture_continuous requires a NumPy array")
+        if not output.shape == (self.resolution[1], self.resolution[0], 3):
+            raise ValueError(f"Expected output shape of {(self.resolution[1], self.resolution[0], 3)} got {output.shape} instead")
+        box_size = 10
+        max_x = self.resolution[0] - box_size
+        max_y = self.resolution[1] - box_size
+        perimeter = 2*(max_x + max_y)
+
+        while True:
+                        
+            distance_from_origin = (self._continuous_counter) % perimeter
+
+            # adjust mean rgb in each iteration
+            output[:] = [0,0,0]
+
+            # animate box
+            if distance_from_origin < max_x:
+                x, y = distance_from_origin, 0
+            elif distance_from_origin < max_x + max_y:
+                x, y = max_x, distance_from_origin - max_x
+            elif distance_from_origin < 2 * max_x + max_y:
+                x, y = 2 * max_x + max_y - distance_from_origin, max_y
+            else:
+                x, y = 0, perimeter - distance_from_origin
+
+            box_color = [self._continuous_counter % 255, 0, 255 - self._continuous_counter % 255]
+            output[y:y + box_size, x:x + box_size] = box_color
+
+            # if self._continuous_counter % 10 == 0 and self._continuous_counter < 200:
+            #     frame_path = f"/Users/tobiasb/Documents/RaspberryPi/rpitv/src/rpitv/static/ambilight_capture{self._continuous_counter:03d}.png"
+            #     imsave(frame_path, output)
+
+            self._continuous_counter += 1
+            yield output            
+    
+    def close(self):
+        self.closed = True
+
+ 
+def _configure_camera(
+        camera,
+        capture_width:int,
+        capture_height:int,
+        framerate:int=30,
+        iso:int=400,
+        check_resolution_mismatch:bool=True,    
+    ):
+    import time
+    import numpy as np
+
+    # if check_resolution_mismatch:
+    #     if capture_width % 32 != 0:
+    #         raise ValueError(f"capture_width {capture_width} not supported. Choose multiple of 32")
+    #     if capture_height % 16 != 0:
+    #         raise ValueError(f"capture_height {capture_height} not supported. Choose multiple of 16")
+
+
+    try:
+        camera.resolution = (capture_width, capture_height)
+        camera.framerate = framerate
+        if not isinstance(camera, FakePiCamera):
+            time.sleep(2)
+        camera.iso = iso
+        camera.shutter_speed = camera.exposure_speed
+        camera.exposure_mode = "off"
+        gain_set = camera.awb_gains
+        camera.awb_mode = "off"
+        camera.awb_gains = gain_set
+        camera.vflip = True
+    except Exception:
+        try:
+            camera.close()
+        except Exception:
+            logger.exception("Failed to close camera after configuration error")
+        raise
+    
+    return camera
+
+
+def PiCamera(
+        capture_width:int,
+        capture_height:int,
+    ):
+    """Return a configured Raspberry Pi camera or an equivalent fallback."""
+    try:
+        from picamera import PiCamera as _PiCamera
+        return _configure_camera(_PiCamera(), capture_width, capture_height)
+    except (ImportError, OSError, RuntimeError):
+        logger.warning("PiCamera hardware unavailable; using fake camera")
+        return _configure_camera(FakePiCamera(), capture_width, capture_height, check_resolution_mismatch=False)

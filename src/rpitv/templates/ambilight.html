@@ -7,8 +7,52 @@
 </head>
 <body>
 	<main class="app-shell">
-		<header class="page-header"><div><p class="eyebrow">02 / Ambient display</p><h1>AMBILIGHT</h1><p>Screen-aware color expansion is ready for configuration.</p></div><a class="back-link" href="/">Back to control</a></header>
+		<header class="page-header">
+			<div>
+				<p class="eyebrow">02 / Ambient display</p>
+				<h1>AMBILIGHT</h1>
+				<p>Screen-aware color expansion is ready for configuration.</p>
+			</div><a class="back-link" href="/">Back to control</a>
+		</header>
 		<section class="panel"><p class="status-light">AMBIENT ENGINE STANDBY</p></section>
+		<section class="panel">
+			<form class="mode-links" action="{{ url_for('ambilight') }}" method="get">
+				<label for="ambilight-method">Color sampling</label>
+				<select id="ambilight-method" name="method" onchange="this.form.submit()">
+					<option value="apply_mean_rgb" {% if method == 'apply_mean_rgb' %}selected{% endif %}>Mean RGB</option>
+					<option value="apply_edge_rgb" {% if method != 'apply_mean_rgb' %}selected{% endif %}>Edge mode</option>
+				</select>
+				<noscript><button type="submit">Apply mode</button></noscript>
+				<label for="camera-resolution">Camera Resolution </label>
+				<select id="camera-resolution" name="camera_resolution" onchange="this.form.submit()">
+					{% for resolution in camera_resolutions %}
+					<option value="{{ resolution }}" {% if camera_resolution == resolution %}selected{% endif %}>{{ resolution }}</option>
+					{% endfor %}
+				</select>
+				<noscript><button type="submit">Apply mode</button></noscript>
+			</form>
+			<div class="mode-links">
+					<a href="/ambilight/capture_photo/">Capture Photo</a>
+			</div>
+			{% if image_filename %}
+			<img
+				src="{{ url_for('static', filename=image_filename) }}?v={{ image_version }}"
+				alt="Ambilight capture"
+				style="width: 25cm"
+			>
+			<img
+				src="{{ url_for('static', filename='ambilight_capture_pixel_buffer.png') }}?v={{ image_version }}"
+				alt="Ambilight capture"
+				style="width: 25cm"
+			>
+			{% endif %}
+			<div class="mode-links">
+				<a href="{{ url_for('ambilight_video_page') }}">Video Stream</a>
+			</div>
+			{% if show_video %}
+			<img src="{{ url_for('video_stream') }}" alt="Live camera preview">
+			{% endif %}
+		</section>
 	</main>
 </body>
 </html>
