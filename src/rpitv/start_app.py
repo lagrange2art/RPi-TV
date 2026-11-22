@@ -16,7 +16,7 @@ from matplotlib import cm
 from matplotlib.colors import Normalize
 
 
-from flask import Flask, Response, render_template, request
+from flask import Flask, Response, jsonify, render_template, request
 import threading 
 import time
 from rpitv.pixelmotion import Rotate, Strobo
