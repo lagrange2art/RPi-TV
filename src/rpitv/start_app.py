@@ -19,7 +19,7 @@ from matplotlib.colors import Normalize
 from flask import Flask, Response, jsonify, render_template, request
 import threading 
 import time
-from rpitv.pixelmotion import Rotate, Strobo
+from rpitv.pixelmotion import Animation
 from rpitv.pixelaudio import AudioVisual
 from rpitv.logger import (
     LOG_PATH,
@@ -64,14 +64,12 @@ class RPiTV:
             adc = ADC(testing=True)  # Fallback to testing mode if ADC initialization fails
 
         pixels = LedStrip(testing=testing, brightness=brightness, hardware=hardware)
-        rotate = Rotate(pixels)
-        strobo = Strobo(pixels)
+        pixelanimation = Animation(pixels)
         audiovisual = AudioVisual(adc, pixels)
 
         self.pixels = pixels
         self.adc = adc
-        self.rotate = rotate
-        self.strobo = strobo
+        self.pixelanimation = pixelanimation
         self.audiovisual = audiovisual
         self._closed = False
         self.ambilight_thread = None
@@ -88,8 +86,7 @@ class RPiTV:
         self.add_endpoint('/restart', 'restart_server', self.restart_server, methods=['POST'])
         self.add_endpoint('/fillstrip/<rgb>', 'fillstrip', self.fillstrip, methods=['GET'])
         self.add_endpoint('/fillstrip/<rgb>', 'setbrightness', self.set_brightness, methods=['POST', 'GET'])
-        self.add_endpoint('/animation/', 'animation', self.animation)
-        self.add_endpoint('/animation/strobo/', 'strobo', self.strobo_mode)
+        self.add_endpoint('/animation/<method>', 'animation', self.animation, methods=['GET'])
         self.add_endpoint('/audiovisual/<method>', 'audiovisual', self.audiovis, methods=['GET'])
         self.add_endpoint(
             '/ambilight/',
@@ -158,9 +155,8 @@ class RPiTV:
                 return err_msg, 503
 
         self.ambilight_thread = None
-        self.rotate.STOP_THREAD = True
         self.audiovisual.STOP_THREAD = True     
-        self.strobo.STOP_THREAD = True
+        self.pixelanimation.stop()
         return render_template('index.html')
 
 
@@ -193,25 +189,24 @@ class RPiTV:
         return self.fillstrip(rgb)
 
 
-    def animation(self, cmap_name='hsv'):
-        length = len(self.pixels)
-        cmap = get_cmap(cmap_name)#'plasma')#viridis')#spring')#twilight')#
-        norm = Normalize(vmin=0, vmax=length)
-        scalarMap = cm.ScalarMappable(norm=norm, cmap=cmap)
-        colors = ((scalarMap.to_rgba(np.arange(length))*255)[:,:3]).astype(int)      
+    def animation(self, method='rotate'):
+        kwargs = {}
+        # fire animation parameters        
+        kwargs["cooling"] = request.args.get("cooling", type=int, default=120)
+        kwargs["sparking"] = request.args.get("sparking", type=int, default=120)
+        kwargs["speed"] = request.args.get("speed", type=float, default=0.05)
+        # rotate animation parameters
+        kwargs["step"] = request.args.get("step", type=int, default=1)
+        kwargs["cmap"] = request.args.get("cmap", type=str, default='hsv')
+        # strobo animation parameters
+        kwargs["on_time"] = request.args.get("on_time", type=float, default=0.01)
+        kwargs["off_time"] = request.args.get("off_time", type=float, default=0.1)
 
-        thread = threading.Thread(target=self.rotate.run, args=(colors, -1))
-        self.strobo.STOP_THREAD = True
-        self.rotate.STOP_THREAD = False
-        thread.start()
-        return render_template('animation.html')
 
-    def strobo_mode(self):
-        thread = threading.Thread(target=self.strobo.run)
-        self.rotate.STOP_THREAD = True
-        self.strobo.STOP_THREAD = False
-        thread.start()
-        return render_template('animation.html')
+        self.pixelanimation.stop()
+        self.pixelanimation.start(method, **kwargs)
+        return render_template('animation.html', name=method, **kwargs)
+
 
     def audiovis(self, method='ladder'):
         logger.info("Starting audiovisual mode: %s", method)
@@ -393,8 +388,7 @@ class RPiTV:
 
         self._closed = True
         logger.info("Closing rpitv")
-        self.rotate.STOP_THREAD = True
-        self.strobo.STOP_THREAD = True
+        self.pixelanimation.stop()
         self.audiovisual.STOP_THREAD = True
         self.ambilight.STOP_THREAD = True
         self.adc.close()

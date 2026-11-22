@@ -1,0 +1,122 @@
+<script>
+  (() => {
+    const picker = document.querySelector('.color-wheel-picker');
+    const canvas = picker.querySelector('#wheelCanvas');
+    const context = canvas.getContext('2d');
+    const cursor = picker.querySelector('#pickerCursor');
+    const preview = picker.querySelector('#colorWheelPreview');
+    const valueOutput = picker.querySelector('#colorWheelValue');
+    const initialColor = picker.dataset.initialColor.split(',').map(Number);
+    const radius = canvas.width / 2;
+    let selectedColor = initialColor;
+
+    function hsvToRgb(hue, saturation, value) {
+      const chroma = value * saturation;
+      const secondary = chroma * (1 - Math.abs((hue / 60) % 2 - 1));
+      const offset = value - chroma;
+      let red = 0;
+      let green = 0;
+      let blue = 0;
+
+      if (hue < 60) [red, green] = [chroma, secondary];
+      else if (hue < 120) [red, green] = [secondary, chroma];
+      else if (hue < 180) [green, blue] = [chroma, secondary];
+      else if (hue < 240) [green, blue] = [secondary, chroma];
+      else if (hue < 300) [red, blue] = [secondary, chroma];
+      else [red, blue] = [chroma, secondary];
+
+      return [red, green, blue].map(channel => Math.round((channel + offset) * 255));
+    }
+
+    function rgbToHsv([red, green, blue]) {
+      const channels = [red, green, blue].map(channel => channel / 255);
+      const maximum = Math.max(...channels);
+      const minimum = Math.min(...channels);
+      const difference = maximum - minimum;
+      let hue = 0;
+
+      if (difference !== 0) {
+        if (maximum === channels[0]) hue = 60 * (((channels[1] - channels[2]) / difference) % 6);
+        else if (maximum === channels[1]) hue = 60 * ((channels[2] - channels[0]) / difference + 2);
+        else hue = 60 * ((channels[0] - channels[1]) / difference + 4);
+      }
+
+      if (hue < 0) hue += 360;
+      return [hue, maximum === 0 ? 0 : difference / maximum];
+    }
+
+    function drawColorWheel() {
+      const image = context.createImageData(canvas.width, canvas.height);
+      const data = image.data;
+
+      for (let x = -radius; x < radius; x++) {
+        for (let y = -radius; y < radius; y++) {
+          const distance = Math.sqrt(x * x + y * y);
+          if (distance > radius) continue;
+
+          let hue = Math.atan2(y, x) * 180 / Math.PI;
+          if (hue < 0) hue += 360;
+          const rgb = hsvToRgb(hue, distance / radius, 1);
+          const pixel = ((y + radius) * canvas.width + x + radius) * 4;
+          data[pixel] = rgb[0];
+          data[pixel + 1] = rgb[1];
+          data[pixel + 2] = rgb[2];
+          data[pixel + 3] = 255;
+        }
+      }
+
+      context.putImageData(image, 0, 0);
+    }
+
+    function showColor(rgb) {
+      selectedColor = rgb;
+      preview.style.backgroundColor = `rgb(${rgb.join(',')})`;
+      valueOutput.value = rgb.join(', ');
+      valueOutput.textContent = rgb.join(', ');
+    }
+
+    function setCursorFromColor(rgb) {
+      const [hue, saturation] = rgbToHsv(rgb);
+      const angle = hue * Math.PI / 180;
+      const distance = saturation * radius;
+      cursor.style.left = `${radius + Math.cos(angle) * distance}px`;
+      cursor.style.top = `${radius + Math.sin(angle) * distance}px`;
+    }
+
+    function selectFromPointer(event) {
+      const rect = canvas.getBoundingClientRect();
+      const scale = canvas.width / rect.width;
+      let x = (event.clientX - rect.left - rect.width / 2) * scale;
+      let y = (event.clientY - rect.top - rect.height / 2) * scale;
+      const distance = Math.sqrt(x * x + y * y);
+
+      if (distance > radius) {
+        const angle = Math.atan2(y, x);
+        x = Math.cos(angle) * radius;
+        y = Math.sin(angle) * radius;
+      }
+
+      const hue = (Math.atan2(y, x) * 180 / Math.PI + 360) % 360;
+      const saturation = Math.min(Math.sqrt(x * x + y * y) / radius, 1);
+      cursor.style.left = `${radius + x}px`;
+      cursor.style.top = `${radius + y}px`;
+      showColor(hsvToRgb(hue, saturation, 1));
+    }
+
+    canvas.addEventListener('pointerdown', event => {
+      canvas.setPointerCapture(event.pointerId);
+      selectFromPointer(event);
+    });
+    canvas.addEventListener('pointermove', event => {
+      if (event.buttons > 0) selectFromPointer(event);
+    });
+    canvas.addEventListener('pointerup', event => {
+      selectFromPointer(event);
+      window.location.href = `/fillstrip/${selectedColor.join(',')}`;
+    });
+
+    drawColorWheel();
+    setCursorFromColor(initialColor);
+    showColor(initialColor);
+  })();
+</script>

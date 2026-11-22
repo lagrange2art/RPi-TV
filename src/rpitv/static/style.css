@@ -196,6 +196,62 @@ body {
      content: "//";
      font-family: "SF Mono", "Cascadia Code", monospace;
 }
+.pixel-picker {
+    margin: 24px 0;
+}
+.pixel-picker-image {
+    position: relative;
+    width: min(100%, 800px);
+    max-width: 100%;
+}
+.pixel-picker-image img, .capture-preview {
+    display: block;
+    width: min(100%, 800px);
+    max-width: 100%;
+    height: auto;
+}
+.pixel-picker-image canvas {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    cursor: crosshair;
+}
+.pixel-picker > output {
+    display: block;
+    margin: 12px 0;
+}
+.picker-guidance {
+    margin: 8px 0;
+    color: var(--muted);
+    font-size: 0.85rem;
+}
+.pixel-picker-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin: 12px 0;
+}
+.pixel-picker-actions button {
+    min-height: 42px;
+    padding: 0 14px;
+}
+.pixel-picker label {
+    display: block;
+    margin: 16px 0 8px;
+    color: var(--muted);
+    font-family: "SF Mono", "Cascadia Code", monospace;
+    font-size: 0.8rem;
+}
+.pixel-picker textarea {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid var(--line);
+    background: #080d11;
+    color: var(--amber);
+    font-family: "SF Mono", "Cascadia Code", monospace;
+    font-size: 0.82rem;
+}
  .color-preview {
      min-height: 110px;
      margin: 18px 0 26px;
