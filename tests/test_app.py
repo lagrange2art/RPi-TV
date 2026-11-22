@@ -80,6 +80,51 @@ def test_index_page_contains_restart_button():
     finally:
         rpitv.close()
 
+
+def test_setup_updates_strip_length():
+    set_led_length = 42
+    from pathlib import Path
+    import json
+    # load current setup.json to restore it after the test
+    setup_json_path = Path(__file__).parent.parent / "src" / "rpitv" / "setup.json"
+    with open(setup_json_path, "r") as f:
+        setup_config = json.load(f)
+    rpitv = RPiTV(Flask("rpitv.start_app"), testing=True)
+    try:
+        response = rpitv.app.test_client().get(f"/setup/?length={set_led_length}")
+
+        assert response.status_code == 200
+        assert rpitv.pixels.length == set_led_length
+        assert b'type="number"' in response.data
+        assert b'value="42"' in response.data
+    finally:
+        rpitv.close()
+    with open(setup_json_path, "r") as f:
+        assert json.load(f)["NUM_LEDS"] == set_led_length
+    # restore the original setup.json
+    with open(setup_json_path, "w") as f:
+        json.dump(setup_config, f, indent=4)
+    
+
+
+@pytest.mark.parametrize("length", ["0", "invalid"])
+def test_setup_rejects_invalid_strip_length(length):
+    rpitv = RPiTV(Flask("rpitv.start_app"), testing=True)
+    
+    from pathlib import Path
+    import json
+
+    with open(Path(__file__).parent.parent / "src" / "rpitv" / "setup.json", "r") as f:
+        setup_config = json.load(f)
+    num_leds = setup_config.get("NUM_LEDS", 219)
+    try:
+        response = rpitv.app.test_client().get(f"/setup/?length={length}")
+
+        assert response.status_code == 400
+        assert rpitv.pixels.length == num_leds  # default length
+    finally:
+        rpitv.close()
+
 @pytest.mark.parametrize(
     "route", [
         "/animation/strobo/",

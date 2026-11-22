@@ -80,6 +80,16 @@ ssh "${PI_HOST}" "
   ${PYTHON_BIN} -m pip install --upgrade .
 "
 
+echo "==> Compiling Arduino sketch and uploading to the Arduino"
+if ! ssh "${PI_HOST}" "
+  ${PYTHON_BIN} '${REMOTE_APP_DIR}/src/rpitv/arduino_setup.py' &&
+  cd '${REMOTE_APP_DIR}/src/rpitv' &&
+  /home/pi/local/bin/arduino-cli compile --fqbn arduino:avr:nano:cpu=atmega328old arduino_pixel  &&
+  /home/pi/local/bin/arduino-cli upload -p /dev/ttyUSB0 --fqbn arduino:avr:nano:cpu=atmega328old arduino_pixel  
+"; then
+  echo "Warning: Arduino upload failed" >&2
+fi
+
 echo "==> Creating systemd service ${SERVICE_NAME} on the Pi"
 ssh "${PI_HOST}" "sudo bash -s -- \"${SERVICE_NAME}\" \"${DESCRIPTION}\" \"${APP_USER}\" \"${PYTHON_BIN}\" \"${REMOTE_APP_DIR}\"" <<'REMOTE'
 SERVICE_NAME="$1"
