@@ -7,7 +7,14 @@ on:
 
 jobs:
   run-tests:
-    runs-on: ubuntu-22.04
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-22.04
+            python-version: '3.8'
+          - os: ubuntu-latest
+            python-version: '3.x'
+    runs-on: ${{ matrix.os }}
 
     steps:
     - name: checkout repository
@@ -16,7 +23,7 @@ jobs:
     - name: install python
       uses: actions/setup-python@v5
       with:
-        python-version: '3.8'
+        python-version: ${{ matrix.python-version }}
 
     - name: install package
       run: |
