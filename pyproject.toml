@@ -22,8 +22,10 @@ dependencies = [
 ]
 [tool.setuptools.package-data]
 rpitv = [
+  "setup.json",
   "templates/*.html",
   "static/*",
+  "arduino_pixel/*.ino",
 ]
 [tool.pytest.ini_options]
 pythonpath = ["src"]

@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Setup / RPI TV</title>
+</head>
+<body>
+  <main class="app-shell">
+    <header class="page-header">
+      <div class="mode-links">
+        <a class="back-link" href="/">Back to control</a>
+      </div>
+    </header>
+    <section class="panel">
+  <form action="{{ url_for('setup') }}" method="get"
+        style="display:grid; grid-template-columns:minmax(0, 1fr) auto; align-items:end; gap:12px; margin:0 0 20px">
+    <div style="min-width:0">
+      <label for="length">Strip length</label>
+      <input id="length" name="length" type="number" min="1" max="300" step="1"
+             value="{{ length }}" required
+             style="width:100%; min-width:0; min-height:50px; padding:0 12px; border:1px solid var(--line); background:#080d11; color:var(--ink); font:inherit">
+    </div>
+    <button type="submit">Apply length</button>
+  </form>
+
+  <form action="{{ url_for('setup') }}" method="get"
+        style="display:grid; grid-template-columns:minmax(0, 1fr) auto; align-items:end; gap:12px; margin:0">
+    <div style="min-width:0">
+      <label for="baudrate">Baud rate</label>
+      <input id="baudrate" name="baudrate" type="number" min="1"
+             value="{{ baudrate }}" required
+             style="width:100%; min-width:0; min-height:50px; padding:0 12px; border:1px solid var(--line); background:#080d11; color:var(--ink); font:inherit">
+    </div>
+    <button type="submit">Apply baud rate</button>
+  </form>
+</section>
+  </main>
+</body>
+</html>

@@ -1,9 +1,15 @@
 import numpy as np
 import logging
+import json
+from pathlib import Path
+from rpitv.arduino_setup import build_upload_arduino_sketch
 logger = logging.getLogger(__name__)
 
-NUM_LEDS = 219
-SERIAL_BAUD_RATE = 1000000
+
+with open(Path(__file__).parent / "setup.json", "r") as f:
+    SETUP_CONFIG = json.load(f)
+NUM_LEDS = SETUP_CONFIG.get("NUM_LEDS", 219)
+SERIAL_BAUD_RATE = SETUP_CONFIG.get("BAUD_RATE", 400000)
 SERIAL_PING = bytes((0x10, 0x03))
 SERIAL_RESPONSE = bytes((0x11, ord("R"), ord("P"), ord("I"), ord("T"), ord("V"), 0x03))
 
@@ -23,27 +29,48 @@ class LedStrip:
             return
 
         if hardware == "rpi":
-            try:
-                import board
-                import neopixel
-            except ImportError as error:
-                raise RuntimeError(
-                    "NeoPixel hardware dependencies are required to use the LED strip on Raspberry Pi"
-                ) from error
-
-            self._strip = neopixel.NeoPixel(
-                board.D10,
-                count,
-                brightness=brightness,
-                auto_write=False,
-            )
+            self._strip = self._get_neopixel_strip(count, brightness)
 
         elif hardware == "arduino":
             self._strip = ArduinoLedStrip(count, brightness)
-        
-        else:
-            raise ValueError(f"Unsupported hardware: {hardware}. Choose 'rpi' or 'arduino'.")
 
+        elif hardware == "auto":
+            try:
+                self._strip = ArduinoLedStrip(count, brightness)
+            except RuntimeError:
+                logger.warning("Arduino not found, falling back to NeoPixel on Raspberry Pi")
+                try:
+                    self._strip = self._get_neopixel_strip(count, brightness)
+                except RuntimeError:
+                    logger.warning("NeoPixel hardware not found, falling back to FakeLedStrip")
+                    self._strip = FakeLedStrip(count, brightness)
+            logger.info("Using %s for LED strip", type(self._strip).__name__)
+        else:
+            raise ValueError(f"Unsupported hardware: {hardware}. Choose 'rpi', 'arduino' or 'auto'.")
+    
+    def _get_neopixel_strip(self, count, brightness):
+        try:
+            import neopixel
+            from types import SimpleNamespace
+            import digitalio
+
+        except ImportError as error:
+            raise RuntimeError(
+                "NeoPixel hardware dependencies are required to use the LED strip on Raspberry Pi"
+            ) from error
+
+        # Bypass digitalio's libgpiod line request on SPI-owned GPIO 10
+        digitalio.DigitalInOut = lambda pin: pin
+        inner_pin = SimpleNamespace(id=10)
+        pin_10 = SimpleNamespace(id=10, _pin=inner_pin, deinit=lambda: None)
+        return neopixel.NeoPixel(
+            pin_10,
+            count,
+            brightness=brightness,
+            auto_write=False,
+        )
+
+    
     @property
     def brightness(self):
         return self._strip.brightness
@@ -53,7 +80,53 @@ class LedStrip:
         if not 0 <= value <= 1:
             raise ValueError("brightness must be between 0 and 1")
         self._strip.brightness = value
-    
+
+    @property
+    def length(self):
+        return len(self._strip)
+
+    @length.setter
+    def length(self, value):
+        if not isinstance(value, int) or value <= 0:
+            raise ValueError("length must be a positive integer")
+        brightness = self.brightness
+        self.close()  # Close the existing strip before creating a new one
+
+        # Update the setup configuration file with the new length
+        SETUP_CONFIG["NUM_LEDS"] = value
+        with open(Path(__file__).parent / "setup.json", "w") as f:
+            json.dump(SETUP_CONFIG, f, indent=4)
+
+        if isinstance(self._strip, ArduinoLedStrip):
+            logger.info("Rebuilding and uploading Arduino sketch for new LED strip length")
+            build_upload_arduino_sketch()
+            self._strip = ArduinoLedStrip(value, brightness)
+        elif isinstance(self._strip, FakeLedStrip):
+            self._strip = FakeLedStrip(value, brightness)
+        else:
+            self._strip = self._get_neopixel_strip(value, brightness)
+
+    @property
+    def baudrate(self):
+        return SETUP_CONFIG["BAUD_RATE"]
+
+    @baudrate.setter
+    def baudrate(self, value):
+        if not isinstance(value, int) or value <= 0:
+            raise ValueError("baudrate must be a positive integer")
+
+        # Update the setup configuration file with the new baudrate
+        SETUP_CONFIG["BAUD_RATE"] = value
+        with open(Path(__file__).parent / "setup.json", "w") as f:
+            json.dump(SETUP_CONFIG, f, indent=4)
+        
+        if isinstance(self._strip, ArduinoLedStrip):
+            self.close()  # Close the existing strip before creating a new one
+            logger.info("Rebuilding and uploading Arduino sketch for new baudrate")
+            build_upload_arduino_sketch()
+            self._strip = ArduinoLedStrip(self.length, self.brightness, baudrate=value)
+
+
     def fill(self, color):
         self._strip.fill(color)
 

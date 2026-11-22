@@ -80,6 +80,38 @@ def test_index_page_contains_restart_button():
     finally:
         rpitv.close()
 
+
+def test_setup_updates_strip_length():
+    rpitv = RPiTV(Flask("rpitv.start_app"), testing=True)
+    try:
+        response = rpitv.app.test_client().get("/setup/?length=42")
+
+        assert response.status_code == 200
+        assert rpitv.pixels.length == 42
+        assert b'type="number"' in response.data
+        assert b'value="42"' in response.data
+    finally:
+        rpitv.close()
+
+
+@pytest.mark.parametrize("length", ["0", "invalid"])
+def test_setup_rejects_invalid_strip_length(length):
+    rpitv = RPiTV(Flask("rpitv.start_app"), testing=True)
+    
+    from pathlib import Path
+    import json
+
+    with open(Path(__file__).parent.parent / "src" / "rpitv" / "setup.json", "r") as f:
+        setup_config = json.load(f)
+    num_leds = setup_config.get("NUM_LEDS", 219)
+    try:
+        response = rpitv.app.test_client().get(f"/setup/?length={length}")
+
+        assert response.status_code == 400
+        assert rpitv.pixels.length == num_leds  # default length
+    finally:
+        rpitv.close()
+
 @pytest.mark.parametrize(
     "route", [
         "/animation/strobo/",

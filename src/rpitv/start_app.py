@@ -118,6 +118,12 @@ class RPiTV:
             "video_stream",
             self.video_stream,
         )
+        self.add_endpoint(
+            '/setup/',
+            'setup',
+            self.setup,
+            methods=['GET']
+        )
 
         self.add_endpoint('/logs', 'logs', self.logs, methods=['GET'])
         self.add_endpoint('/logs/benchmark/', 'benchmark', self.benchmark)
@@ -330,7 +336,40 @@ class RPiTV:
             mimetype="multipart/x-mixed-replace; boundary=frame",
         )
 
+    def setup(self):
+        length_current = self.pixels.length
+        length_value = request.args.get("length")
+        baudrate_current = self.pixels.baudrate
+        baudrate_value = request.args.get("baudrate")
+        
+        if length_value is not None:
+            try:
+                length_setter = int(length_value)
+            except ValueError:
+                return "Strip length must be a positive integer", 400
+            if length_setter <= 0:
+                return "Strip length must be a positive integer", 400
+            if length_setter != length_current:
+                logger.info(f"Changing led strip length from {length_current} to {length_setter}")
+                self.pixels.length = length_setter
 
+        if baudrate_value is not None:
+            try:
+                baudrate_setter = int(baudrate_value)
+            except ValueError:
+                return "Baud rate must be a positive integer", 400
+            if baudrate_setter <= 0:
+                return "Baud rate must be a positive integer", 400
+            if baudrate_setter != baudrate_current:
+                logger.info(f"Changing led strip baud rate from {baudrate_current} to {baudrate_setter}")
+                self.pixels.baudrate = baudrate_setter
+
+        return render_template(
+            'setup.html',
+            length=self.pixels.length,
+            baudrate=self.pixels.baudrate,
+        )
+    
     def logs(self):
         log_content = LOG_PATH.read_text() if LOG_PATH.exists() else "No log entries yet."
         return render_template('logs.html', log_content=ansi_to_html(log_content))
@@ -366,7 +405,7 @@ def main(args=None) -> None:
     if args is None:
         parser = argparse.ArgumentParser()
         parser.add_argument('--port', type=int, default=5000)
-        parser.add_argument('--hardware', default="arduino", choices=['rpi', 'arduino'], help='Specify the hardware to use: rpi or arduino')
+        parser.add_argument('--hardware', default='auto', choices=['auto', 'rpi', 'arduino'], help='Specify the hardware to use: rpi or arduino')
         parser.add_argument('--testing', action='store_true')
 
         args = parser.parse_args()
