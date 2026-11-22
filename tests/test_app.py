@@ -100,7 +100,7 @@ def test_setup_updates_strip_length():
     finally:
         rpitv.close()
     with open(setup_json_path, "r") as f:
-        setup_config = json.load(f)["NUM_LEDS"] == set_led_length
+        assert json.load(f)["NUM_LEDS"] == set_led_length
     # restore the original setup.json
     with open(setup_json_path, "w") as f:
         json.dump(setup_config, f, indent=4)
