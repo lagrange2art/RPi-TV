@@ -34,7 +34,27 @@
     </div>
     <button type="submit">Apply baud rate</button>
   </form>
+
+  <section class="update-section" aria-labelledby="update-heading">
+    <h2 id="update-heading">Application update</h2>
+    {% if update_enabled %}
+    <form action="{{ url_for('update_from_github') }}" method="post"
+          onsubmit="return confirm('Pull and install the latest code from GitHub main, then restart the app?')"
+          style="display:grid; grid-template-columns:minmax(0, 1fr) auto; align-items:end; gap:12px; margin:16px 0 0">
+      <div style="min-width:0">
+        <label for="update-token">Admin update token</label>
+        <input id="update-token" name="token" autocomplete="off" required
+               style="width:100%; min-width:0; min-height:50px; padding:0 12px; border:1px solid var(--line); background:#080d11; color:var(--ink); font:inherit">
+      </div>
+      <button type="submit">Pull and install update</button>
+    </form>
+    <p>Updates are limited to the configured GitHub repository's <code>main</code> branch.</p>
+    {% else %}
+    <p>Updates are disabled. Configure <code>RPITV_UPDATE_TOKEN</code> in the service environment to enable them.</p>
+    {% endif %}
+  </section>
 </section>
+
   </main>
 </body>
 </html>
