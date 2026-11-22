@@ -1,18 +1,14 @@
 import pytest
-from rpitv.pixelmotion import Rotate
+from rpitv.pixelmotion import Animation
 from rpitv.rpi_wrapper import LedStrip
-import threading
 import time
 
-
-def test_rotate():
+@pytest.mark.parametrize("method", ["fire", "rotate", "strobo"])
+def test_animation_start_stop(method):
     led_strip = LedStrip(testing=True, count=219, brightness=1.,)
+    
+    animation = Animation(led_strip) 
+    animation.start(method)
 
-    rotate = Rotate(led_strip)
-    colors = [[255,255,0]] + [[0,0,0]]*(len(led_strip) - 1)
-    thread = threading.Thread(target=rotate.run, args=(colors, -1))
-
-    # rotate.STOP_THREAD = False
-    thread.start()
-    time.sleep(0.5)
-    rotate.STOP_THREAD = True
+    time.sleep(0.01)
+    animation.stop()

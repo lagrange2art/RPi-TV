@@ -23,8 +23,7 @@ def test_create_app():
     assert rpitv.pixels.brightness == 0.5
     assert rpitv.pixels is not None
     assert rpitv.adc is not None
-    assert rpitv.rotate is not None
-    assert rpitv.strobo is not None
+    assert rpitv.pixelanimation is not None
     assert rpitv.audiovisual is not None
 
 
@@ -127,12 +126,13 @@ def test_setup_rejects_invalid_strip_length(length):
 
 @pytest.mark.parametrize(
     "route", [
-        "/animation/strobo/",
-        "/animation/",
+        "/animation/strobo",
+        "/animation/rotate",
+        "/animation/fire",
         "/fillstrip/255,128,64",
         pytest.param("/audiovisual/ladder", id="audiovisual_ladder",),
         pytest.param("/audiovisual/pulse", id="audiovisual_pulse"),
-        # "/ambilight/",
+        "/ambilight/",
 ]
 )
 def test_app_route(route):
@@ -147,6 +147,19 @@ def test_app_route(route):
         client = rpitv.app.test_client()
         response = client.get(route)
         assert response.status_code == 200
+    finally:
+        rpitv.close()
+
+
+def test_fillstrip_uses_color_wheel_picker():
+    rpitv = RPiTV(Flask("rpitv.start_app"), testing=True)
+    try:
+        response = rpitv.app.test_client().get("/fillstrip/255,128,64")
+
+        assert response.status_code == 200
+        assert b'id="wheelCanvas"' in response.data
+        assert b'id="colorWheelPreview"' in response.data
+        assert b'data-initial-color="255,128,64"' in response.data
     finally:
         rpitv.close()
 

@@ -3,64 +3,70 @@
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Fill strip / RPI TV</title>
-<style id='compiled-css' type='text/css'>
-.wrapper {
-  display: flex;
-}
-.box {
-  width: 60px;
-  height: 60px;
-  border-style: solid;
-  border-color: white;
- }
-.off {
-  background: rgb(0,0,0);
-}
-.white {
-  background: rgb(255,255,255);
-}
-.g00 {
-  background: rgb(255,51,51);
-}
-.g01 {
-  background: rgb(255,153,51);
-}
-.g02 {
-  background: rgb(255,255,0);
-}
-.g03 {
-  background: rgb(128,255,0);
-}
+<style>
+  .color-wheel-picker {
+    display: grid;
+    grid-template-columns: minmax(0, 300px) minmax(180px, 1fr);
+    align-items: center;
+    gap: 24px;
+    margin-top: 24px;
+  }
 
+  .color-wheel-wrapper {
+    position: relative;
+    width: min(300px, 100%);
+    aspect-ratio: 1;
+  }
 
-.g10 {
-  background: rgb(0,255,0);
-}
-.g11 {
-  background: rgb(0,255,128);
-}
-.g12 {
-  background: rgb(0,255,255);
-}
-.g13 {
-  background: rgb(0, 128, 255);
-}
+  #wheelCanvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    cursor: crosshair;
+    touch-action: none;
+  }
 
+  .picker-cursor {
+    position: absolute;
+    width: 16px;
+    height: 16px;
+    border: 2px solid #ffffff;
+    outline: 1px solid #000000;
+    border-radius: 50%;
+    pointer-events: none;
+    transform: translate(-50%, -50%);
+    box-shadow: 0 0 4px rgba(0, 0, 0, 0.5);
+  }
 
-.g20 {
-  background: rgb(0,0,255);
-}
-.g21 {
-  background: rgb(127,0,255);
-}
-.g22 {
-  background: rgb(255,0,255);
-}
-.g23 {
-  background: rgb(255,0,127);
-}
+  .color-wheel-details {
+    display: grid;
+    justify-items: start;
+    gap: 14px;
+  }
 
+  .color-wheel-details label {
+    color: var(--muted, #8799a6);
+    font-family: "SF Mono", "Cascadia Code", monospace;
+    font-size: 0.8rem;
+  }
 
+  .color-wheel-preview {
+    width: 72px;
+    height: 48px;
+    border: 1px solid rgba(255, 255, 255, 0.55);
+  }
+
+  .color-wheel-details output {
+    color: var(--amber, #ffbf69);
+    font-family: "SF Mono", "Cascadia Code", monospace;
+  }
+
+  @media (max-width: 620px) {
+    .color-wheel-picker {
+      grid-template-columns: minmax(0, 1fr);
+    }
+  }
 </style>
 </head>
 <body>
@@ -88,60 +94,24 @@
       <output id="brightnessValue">{{ brightness }}</output>
     </form>
   </div>
+  <a class="back-link" href="/fillstrip/0,0,0">Turn Off</a>
   <a class="back-link" href="/">Back to control</a>
 </header>
 <section class="panel">
-<div class="wrapper">
-  <h2>Current output</h2>
-  <div class="box" style="background: rgb({{ name }})"></div>
+
+<div class="color-wheel-picker" data-initial-color="{{ name|default('255,0,0') }}">
+  <div class="color-wheel-wrapper">
+    <canvas id="wheelCanvas" width="300" height="300" aria-label="Color wheel"></canvas>
+    <div id="pickerCursor" class="picker-cursor" aria-hidden="true"></div>
+  </div>
+  <div class="color-wheel-details">
+    <label for="colorWheelPreview">Selected color (RGB)</label>
+    <div id="colorWheelPreview" class="color-wheel-preview" aria-hidden="true"></div>
+    <output id="colorWheelValue" aria-live="polite"></output>
+  </div>
 </div>
 
-
-<div class="wrapper">
-  <a href='/fillstrip/0,0,0'><div class="box off"></div></a>
-  <a href='/fillstrip/255,255,255'><div class="box white"></div></a>
-  <a href='/fillstrip/255,51,51'><div class="box g00"></div></a>
-  <a href='/fillstrip/255,153,51'><div class="box g01"></div></a>
-  <a href='/fillstrip/255,255,0'><div class="box g02"></div></a>
-  <a href='/fillstrip/128,255,0'><div class="box g03"></div></a>
-  <a href='/fillstrip/0,255,0'><div class="box g10"></div></a>
-  <a href='/fillstrip/0,255,128'><div class="box g11"></div></a>
-  <a href='/fillstrip/0,255,255'><div class="box g12"></div></a>
-  <a href='/fillstrip/0,128,255'><div class="box g13"></div></a>
-  <a href='/fillstrip/0,0,255'><div class="box g20"></div></a>
-  <a href='/fillstrip/127,0,255'><div class="box g21"></div></a>
-  <a href='/fillstrip/255,0,255'><div class="box g22"></div></a>
-  <a href='/fillstrip/255,0,127'><div class="box g23"></div></a>
-  <a href="/fillstrip/255,128,128"><div class="box" style="background: rgb(255,128,128)"></div></a>
-  <a href="/fillstrip/255,200,128"><div class="box" style="background: rgb(255,200,128)"></div></a>
-  <a href="/fillstrip/128,255,128"><div class="box" style="background: rgb(128,255,128)"></div></a>
-  <a href="/fillstrip/128,200,255"><div class="box" style="background: rgb(128,200,255)"></div></a>
-  <a href="/fillstrip/128,0,0"><div class="box" style="background: rgb(128,0,0)"></div></a>
-  <a href="/fillstrip/128,64,0"><div class="box" style="background: rgb(128,64,0)"></div></a>
-  <a href="/fillstrip/0,128,64"><div class="box" style="background: rgb(0,128,64)"></div></a>
-  <a href="/fillstrip/0,64,128"><div class="box" style="background: rgb(0,64,128)"></div></a>
-  <a href="/fillstrip/255,128,0"><div class="box" style="background: rgb(255,128,0)"></div></a>
-  <a href="/fillstrip/200,80,0"><div class="box" style="background: rgb(200,80,0)"></div></a>
-  <a href="/fillstrip/128,64,128"><div class="box" style="background: rgb(128,64,128)"></div></a>
-  <a href="/fillstrip/64,64,64"><div class="box" style="background: rgb(64,64,64)"></div></a>
-</div>
-
-<div class="continuous-picker">
-  <label for="color-picker">Choose any color</label>
-  <input id="color-picker" type="color" value="#ff0000">
-  <button type="button" onclick="applyColor()">Apply</button>
-</div>
-
-<script>
-function applyColor() {
-  const hex = document.getElementById("color-picker").value;
-  const red = parseInt(hex.slice(1, 3), 16);
-  const green = parseInt(hex.slice(3, 5), 16);
-  const blue = parseInt(hex.slice(5, 7), 16);
-
-  window.location.href = `/fillstrip/${red},${green},${blue}`;
-}
-</script>
+{% include "_colorpicker.html" %}
 
 </section>
 </main>

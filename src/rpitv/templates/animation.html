@@ -1,25 +1,105 @@
 <!doctype html>
 <html lang="en">
 <head>
-                <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-                <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                <title>Animation / RPI TV</title>
+	<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+		<meta name="viewport" content="width=device-width, initial-scale=1.0">
+		<title>Animation / RPI TV</title>
 </head>
 <body>
-        <main class="app-shell">
-                <header class="page-header">
-                        <div>
-                                <p class="eyebrow">03 / Motion control</p>
-                                <h1>ANIMATION</h1>
-                                <p>Choose a pattern for the strip to carry through the room.</p>
-                        </div><a class="back-link" href="/">Back to control</a>
-                </header>
-                <section class="panel">
-                        <div class="mode-links">
-                                <a href="/animation/">Rotate spectrum</a>
-                                <a href="/animation/strobo/">Strobo pulse</a>
-                        </div>
-                </section>
-        </main>
+	<main class="app-shell">
+		<header class="page-header">
+			<div>
+				<p class="eyebrow">03 / Motion control</p>
+					<h1>ANIMATION</h1>
+				<p>Choose a pattern for the strip to carry through the room.</p>
+			</div><a class="back-link" href="/">Back to control</a>
+		</header>
+		<section class="panel">
+			<div class="mode-links">
+				<a href="/animation/rotate">Rotate spectrum</a>
+					{% if name == "rotate" %}
+					<form action="{{ url_for('animation', method='rotate') }}" method="get"
+							align-items:end; gap:12px; margin:0">
+					<div class="mode-links">
+						<div style="min-width:0">
+						<label for="step">step</label>
+						<input id="step" name="step" type="number" step="1"
+								value="{{ step }}" required
+								style="width:100%; min-width:0; min-height:50px; padding:0 12px; border:1px solid var(--line); background:#080d11; color:var(--ink); font:inherit">
+						</div>
+						<div style="min-width:0">
+						<label for="cmap">colormap</label>
+						<select id="cmap" name="cmap" required
+								style="width:100%; min-width:0; min-height:50px; padding:0 12px; border:1px solid var(--line); background:#080d11; color:var(--ink); font:inherit">
+							<option value="hsv" {% if cmap == 'hsv' %}selected{% endif %}>hsv</option>
+							<option value="jet" {% if cmap == 'jet' %}selected{% endif %}>jet</option>
+							<option value="plasma" {% if cmap == 'plasma' %}selected{% endif %}>plasma</option>
+							<option value="viridis" {% if cmap == 'viridis' %}selected{% endif %}>viridis</option>
+							<option value="inferno" {% if cmap == 'inferno' %}selected{% endif %}>inferno</option>
+							<option value="magma" {% if cmap == 'magma' %}selected{% endif %}>magma</option>
+						</select>
+						</div>
+						<button type="submit">Apply rotate parameters</button>
+					</div>
+					</form>
+					{% endif %}
+				<a href="/animation/strobo">Strobo pulse</a>
+					{% if name == "strobo" %}
+					<form action="{{ url_for('animation', method='strobo') }}" method="get"
+							align-items:end; gap:12px; margin:0">
+					<div class="mode-links">
+						<div style="min-width:0">
+						<label for="on_time">on time</label>
+						<input id="on_time" name="on_time" type="number" min="0" step="any"
+								value="{{ on_time }}" required
+								style="width:100%; min-width:0; min-height:50px; padding:0 12px; border:1px solid var(--line); background:#080d11; color:var(--ink); font:inherit">
+						</div>
+						<div style="min-width:0">
+						<label for="off_time">off time</label>
+						<input id="off_time" name="off_time" type="number" min="0" step="any"
+								value="{{ off_time }}" required
+								style="width:100%; min-width:0; min-height:50px; padding:0 12px; border:1px solid var(--line); background:#080d11; color:var(--ink); font:inherit">
+						</div>
+						<button type="submit">Apply strobo parameters</button>
+					</div>
+					</form>
+					{% endif %}
+				<a href="/animation/fire">Fire simulation</a>
+					{% if name == "fire" %}
+					<form action="{{ url_for('animation', method='fire') }}" method="get"
+							align-items:end; gap:12px; margin:0">
+					<div class="mode-links">
+						<div style="min-width:0">
+						<label for="cooling">cooling</label>
+						<input id="cooling" name="cooling" type="number" min="1"
+								value="{{ cooling }}" required
+								style="width:100%; min-width:0; min-height:50px; padding:0 12px; border:1px solid var(--line); background:#080d11; color:var(--ink); font:inherit">
+						</div>
+
+						<div style="min-width:0">
+						<label for="sparking">sparking</label>
+						<input id="sparking" name="sparking" type="number" min="1"
+								value="{{ sparking }}" required
+								style="width:100%; min-width:0; min-height:50px; padding:0 12px; border:1px solid var(--line); background:#080d11; color:var(--ink); font:inherit">
+						</div>
+					
+						<div style="min-width:0">
+						<label for="speed">waiting time</label>
+						<input id="speed" name="speed" type="number" min="0" step="any"
+								value="{{ speed }}" required
+								style="width:100%; min-width:0; min-height:50px; padding:0 12px; border:1px solid var(--line); background:#080d11; color:var(--ink); font:inherit">
+						</div>
+					
+						<button type="submit">Apply fire parameters</button>
+					</div>
+					</form>
+
+
+  					{% endif %}
+
+
+			</div>
+		</section>
+	</main>
 </body>
 </html>
