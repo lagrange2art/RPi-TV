@@ -219,6 +219,39 @@ def test_ambilight_resolution_selector_rejects_unknown_resolution():
         )
 
         assert response.status_code == 400
-        assert rpitv.ambilight.camera_resolution == (640, 480)
+        assert rpitv.ambilight.camera_resolution == (128, 96)  # default resolution
+    finally:
+        rpitv.close()
+
+
+def test_ambilight_source_corner_selection_updates_perspective_matrix():
+    rpitv = RPiTV(Flask("rpitv.start_app"), testing=True)
+    rpitv.ambilight.camera_resolution = (640, 480)
+
+    try:
+        corners = [[37, 2], [38, 124], [69, 98], [69, 26]] 
+        response = rpitv.app.test_client().post(
+            "/ambilight/source_corners/",
+            json={"source_corners": corners},
+        )
+
+        assert response.status_code == 200
+        assert response.json["source_corners"] == corners
+        assert rpitv.ambilight.source_corners.tolist() == corners
+        assert rpitv.ambilight.perspective_matrix.shape == (3, 3)
+    finally:
+        rpitv.close()
+
+
+def test_ambilight_source_corner_selection_rejects_invalid_points():
+    rpitv = RPiTV(Flask("rpitv.start_app"), testing=True)
+    try:
+        response = rpitv.app.test_client().post(
+            "/ambilight/source_corners/",
+            json={"source_corners": [[0, 0], [20, 0], [20, 20]]},
+        )
+
+        assert response.status_code == 400
+        assert "error" in response.json
     finally:
         rpitv.close()

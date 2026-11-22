@@ -45,6 +45,8 @@ CAMERA_RESOLUTIONS = {
     "640x480": (640, 480),
     "480x270": (480,270),
     "320x240": (320, 240),
+    "160x120": (160, 120),
+    "128x96": (128, 96),
     "160x90": (160, 90),
     "64x64": (64, 64),
     "64x48": (64, 48),
@@ -79,7 +81,7 @@ class RPiTV:
             pixels=pixels,
             led_width = 71,
             led_height = 39,
-            camera_resolution=(640,480),#(2592,1944),#(96,48),
+            camera_resolution=(128,96),
             offset = 35, 
         )
         self.add_endpoint('/', '', self.index, methods=['GET'])
@@ -99,6 +101,12 @@ class RPiTV:
             '/ambilight/capture_photo/',
             'capture_photo',
             self.capture_photo,methods=['GET']
+        )
+        self.add_endpoint(
+            '/ambilight/source_corners/',
+            'set_ambilight_source_corners',
+            self.set_ambilight_source_corners,
+            methods=['POST'],
         )
         self.add_endpoint(
             "/ambilight/video/",
@@ -278,6 +286,17 @@ class RPiTV:
                 f"{self.ambilight.camera_resolution[1]}"
             ),
             camera_resolutions=CAMERA_RESOLUTIONS,
+        )
+
+    def set_ambilight_source_corners(self):
+        payload = request.get_json(silent=True) or {}
+        try:
+            self.ambilight._calibrate_corners(payload.get("source_corners"))
+        except (TypeError, ValueError) as exc:
+            return jsonify(error=str(exc)), 400
+
+        return jsonify(
+            source_corners=self.ambilight.source_corners.tolist(),
         )
     
     def ambilight_video_page(self):

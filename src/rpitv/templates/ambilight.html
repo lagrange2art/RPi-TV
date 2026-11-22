@@ -35,16 +35,114 @@
 					<a href="/ambilight/capture_photo/">Capture Photo</a>
 			</div>
 			{% if image_filename %}
-			<img
-				src="{{ url_for('static', filename=image_filename) }}?v={{ image_version }}"
-				alt="Ambilight capture"
-				style="width: 25cm"
-			>
+			<div class="pixel-picker">
+				<div class="pixel-picker-image">
+					<img
+						id="capture-image"
+						src="{{ url_for('static', filename=image_filename) }}?v={{ image_version }}"
+						alt="Ambilight capture; click to select image pixel indices"
+					>
+					<canvas id="pixel-picker-canvas" aria-label="Click the capture to select pixel indices" tabindex="0"></canvas>
+				</div>
+				<output id="pixel-picker-readout" aria-live="polite">Click the image to select a pixel.</output>
+				<p class="picker-guidance">Select four corners in order: top-left, top-right, bottom-right, bottom-left.</p>
+				<div class="pixel-picker-actions">
+					<button id="apply-corners" type="button" disabled>Use as source corners</button>
+					<button id="copy-indices" type="button" disabled>Copy NumPy indices</button>
+					<button id="clear-indices" type="button" disabled>Clear points</button>
+				</div>
+				<label for="selected-indices">Selected indices [row, column]</label>
+				<textarea id="selected-indices" rows="2" readonly>[]</textarea>
+			</div>
 			<img
 				src="{{ url_for('static', filename='ambilight_capture_pixel_buffer.png') }}?v={{ image_version }}"
 				alt="Ambilight capture"
-				style="width: 25cm"
+				class="capture-preview"
 			>
+			<script>
+				(() => {
+					const image = document.getElementById("capture-image");
+					const canvas = document.getElementById("pixel-picker-canvas");
+					const context = canvas.getContext("2d");
+					const readout = document.getElementById("pixel-picker-readout");
+					const indices = document.getElementById("selected-indices");
+					const copyButton = document.getElementById("copy-indices");
+					const clearButton = document.getElementById("clear-indices");
+					const applyButton = document.getElementById("apply-corners");
+					const points = [];
+					const cornerNames = ["top-left", "top-right", "bottom-right", "bottom-left"];
+
+					function renderPoints() {
+						context.clearRect(0, 0, canvas.width, canvas.height);
+						context.lineWidth = Math.max(2, canvas.width / 400);
+						context.font = `bold ${Math.max(14, canvas.width / 50)}px sans-serif`;
+						points.forEach((point, index) => {
+							context.beginPath();
+							context.arc(point.x, point.y, Math.max(5, canvas.width / 100), 0, 2 * Math.PI);
+							context.fillStyle = "#ffbf69";
+							context.fill();
+							context.strokeStyle = "#101820";
+							context.stroke();
+							context.fillStyle = "#ffffff";
+							context.fillText(String(index + 1), point.x + canvas.width / 80, point.y);
+						});
+						indices.value = `[${points.map(({x, y}) => `[${y}, ${x}]`).join(", ")}]`;
+						copyButton.disabled = points.length === 0;
+						clearButton.disabled = points.length === 0;
+						applyButton.disabled = points.length !== 4;
+					}
+
+					function initializePicker() {
+						if (!image.naturalWidth) return;
+						canvas.width = image.naturalWidth;
+						canvas.height = image.naturalHeight;
+						renderPoints();
+					}
+
+					image.addEventListener("load", initializePicker);
+					initializePicker();
+					canvas.addEventListener("click", (event) => {
+						if (points.length === 4) return;
+						const bounds = canvas.getBoundingClientRect();
+						const x = Math.min(canvas.width - 1, Math.floor((event.clientX - bounds.left) * canvas.width / bounds.width));
+						const y = Math.min(canvas.height - 1, Math.floor((event.clientY - bounds.top) * canvas.height / bounds.height));
+						points.push({x, y});
+						readout.textContent = `Point ${points.length}/4 (${cornerNames[points.length - 1]}): x=${x}, y=${y}; NumPy index [${y}, ${x}]`;
+						renderPoints();
+					});
+					clearButton.addEventListener("click", () => {
+						points.length = 0;
+						readout.textContent = "Click the image to select a pixel.";
+						renderPoints();
+					});
+					applyButton.addEventListener("click", async () => {
+						applyButton.disabled = true;
+						try {
+							const response = await fetch("{{ url_for('set_ambilight_source_corners') }}", {
+								method: "POST",
+								headers: {"Content-Type": "application/json"},
+								body: JSON.stringify({source_corners: points.map(({x, y}) => [x, y])}),
+							});
+							const result = await response.json();
+							if (!response.ok) throw new Error(result.error || "Could not apply source corners");
+							readout.textContent = "Source corners applied to Ambilight.";
+						} catch (error) {
+							readout.textContent = error.message;
+							applyButton.disabled = points.length !== 4;
+						}
+					});
+					copyButton.addEventListener("click", async () => {
+						try {
+							await navigator.clipboard.writeText(indices.value);
+							readout.textContent = "NumPy indices copied.";
+						} catch {
+							indices.focus();
+							indices.select();
+							readout.textContent = "Select the indices above and copy them.";
+						}
+					});
+				})();
+			</script>
 			{% endif %}
 			<div class="mode-links">
 				<a href="{{ url_for('ambilight_video_page') }}">Video Stream</a>
@@ -52,6 +150,9 @@
 			{% if show_video %}
 			<img src="{{ url_for('video_stream') }}" alt="Live camera preview">
 			{% endif %}
+			<div class="mode-links">
+				<a href="/ambilight/background_detection/">Background Detection</a>
+			</div>
 		</section>
 	</main>
 </body>

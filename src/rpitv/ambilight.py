@@ -59,9 +59,57 @@ class Ambilight(object):
         self.camera_resolution = camera_resolution
 
 
-        self.calibration_matrix = get_calibration_matrix(method="constraints")
-    
+        # self.calibration_matrix = get_calibration_matrix(method="constraints")
+        self.calibration_matrix = np.array(
+            [
+                [1.0, 0.0, 0.0],
+                [0.0, 1.0, 0.0],
+                [0.0, 0.0, 0.9],    
+            ]
+        )
+
         self.STOP_THREAD = False
+
+        source_corners = np.array(
+            [
+                [0, 0],     # Top-Left
+                [camera_resolution[0] - 1, 0], # Top-Right
+                [camera_resolution[0] - 1, camera_resolution[1] - 1],  # Bottom-Right 
+                [0, camera_resolution[1] - 1],  # Bottom-Left 
+            ],
+            dtype=np.float32
+        )
+        self._calibrate_corners(source_corners)
+
+    def _calibrate_corners(self, source_corners):
+        """Validate and apply four source points in top-left clockwise order."""
+        corners = np.asarray(source_corners, dtype=np.float32)
+        if corners.shape != (4, 2) or not np.isfinite(corners).all():
+            raise ValueError("Exactly four finite (x, y) points are required")
+
+        width, height = self.camera_resolution
+        if (
+            np.any(corners[:, 0] < 0)
+            or np.any(corners[:, 0] >= width)
+            or np.any(corners[:, 1] < 0)
+            or np.any(corners[:, 1] >= height)
+        ):
+            raise ValueError(f"Source points {source_corners} must lie inside the current image {self.camera_resolution}")
+        if not cv2.isContourConvex(corners.reshape(-1, 1, 2)):
+            raise ValueError("Points must form a convex quadrilateral in TL, TR, BR, BL order")
+
+        destination_corners = np.array(
+            [
+                [0, 0],
+                [width - 1, 0],
+                [width - 1, height - 1],
+                [0, height - 1],
+            ],
+            dtype=np.float32,
+        )
+        perspective_matrix = cv2.getPerspectiveTransform(corners, destination_corners)
+        self.source_corners = corners.copy()
+        self.perspective_matrix = perspective_matrix
 
     def _initialize_pixel_buffers(self,):
         self._pixel_buffer_2d = np.empty(
@@ -69,13 +117,17 @@ class Ambilight(object):
             dtype=np.uint8,
         )
         # edge indices of pixel_buffer edge that are streamed to led strip
-        self._pixel_buffer_2d_edge = np.array(
+        _pixel_buffer_2d_edge = np.array(
             [[i,0] for i in range(self.led_width)] 
             + [[self.led_width-1,i] for i in range(self.led_height)] 
             + [[i, self.led_height-1] for i in range(self.led_width)[::-1]] 
             + [[0,i] for i in range(self.led_height)[::-1]] 
         )
-
+        self._pixel_buffer_2d_edge = np.roll(
+            _pixel_buffer_2d_edge,
+            shift=-self.offset,
+            axis=0,
+        )
 
     @property
     def camera_resolution(self):
@@ -112,19 +164,9 @@ class Ambilight(object):
         )
 
 
-
-
     def calibrate_rgb(self, rgb):
         return np.dot(rgb, self.calibration_matrix.T)
-        rgb = np.asarray(rgb, dtype=np.float32)
-
-        corrected = np.maximum(rgb, 0)
-        corrected *= np.asarray(gains)
-
-        corrected = np.clip(corrected / 255.0, 0.0, 1.0)
-        corrected = corrected ** gamma
-
-        return np.rint(corrected * 255).astype(np.uint8)   
+   
 
     def apply_mean_rgb(self) -> None:
         """ Light up leds according to mean rgb of captured image """
@@ -134,6 +176,13 @@ class Ambilight(object):
     def apply_edge_rgb(self) -> None:
         """ Light up leds according to the edge of the captured image """
         
+        cv2.warpPerspective(
+            src=self.video_buffer,
+            M=self.perspective_matrix,
+            dsize=self.video_buffer.shape[1::-1],
+            dst=self.video_buffer,
+        )
+
         resize(
             src=self.video_buffer,
             dsize=self._pixel_buffer_2d.shape[1::-1],
@@ -141,12 +190,8 @@ class Ambilight(object):
         )
 
         # take edge --> remove led offset --> calibrate rgb values --> update pixel
-        self.pixels[:] = self.calibrate_rgb(
-            np.roll(
-                self._pixel_buffer_2d[self._pixel_buffer_2d_edge[:,1], self._pixel_buffer_2d_edge[:,0]], 
-                shift=-self.offset, 
-                axis=0
-            )
+        self.pixels[:] = ( #self.calibrate_rgb(
+            self._pixel_buffer_2d[self._pixel_buffer_2d_edge[:,1], self._pixel_buffer_2d_edge[:,0]]
         )[self.blind_pixels:]
 
     def run(self, method:str="apply_edge_rgb"):
@@ -218,11 +263,16 @@ class Ambilight(object):
                             str(outpath), 
                             self.video_buffer,
                     )
+                    cv2.warpPerspective(
+                        src=self.video_buffer,
+                        M=self.perspective_matrix,
+                        dsize=self.video_buffer.shape[1::-1],
+                        dst=self.video_buffer,
+                    )
                     resized_photo = resize(
                         src=self.video_buffer,
                         dsize=self._pixel_buffer_2d.shape[1::-1],
                     )
-                    resized_photo[self._pixel_buffer_2d_edge[:,1], self._pixel_buffer_2d_edge[:,0]] = [255,255,255]
                     imsave(
                         str(outpath).replace(".png", "_pixel_buffer.png"), 
                         resized_photo,
@@ -330,7 +380,8 @@ def get_calibration_matrix(
     else:
         logger.warning('no calibration method given use identity')
         calibration_matrix = np.eye(3)
-
+    
+    logger.info(f"calibration matrix:\n{calibration_matrix}")
     return calibration_matrix
 
 
@@ -385,7 +436,7 @@ def main():
     led_height = 39   # number of leds in y-direction
     offset = 35       # strip starts in top row, but in the middle with offset leds before it
     pixels = LedStrip(testing=True, brightness=1.0, hardware="rpi")
-    amblight = Ambilight(pixels, led_width, led_height, (128,96), offset)
+    amblight = Ambilight(pixels, camera_resolution=(128,96), led_width=led_width, led_height=led_height, offset=offset)
     amblight.run()
 
 if __name__ == '__main__':
