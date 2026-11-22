@@ -48,7 +48,7 @@ def test_restart_server_schedules_sigterm_and_returns_accepted(monkeypatch):
     try:
         response = rpitv.app.test_client().post("/restart")
 
-        assert response.status_code == 202
+        assert response.status_code == 202, response.get_data(as_text=True)
         assert b"Restarting the server" in response.data
         assert scheduled["interval"] == 1.0
         assert scheduled["started"]
@@ -123,6 +123,33 @@ def test_setup_rejects_invalid_strip_length(length):
         assert rpitv.pixels.length == num_leds  # default length
     finally:
         rpitv.close()
+
+
+def test_github_update_requires_configured_token(monkeypatch):
+    monkeypatch.delenv("RPITV_UPDATE_TOKEN", raising=False)
+    rpitv = RPiTV(Flask("rpitv.start_app"), testing=True)
+    try:
+        client = rpitv.app.test_client()
+        page = client.get("/setup/")
+        assert b"Updates are disabled" in page.data
+
+        response = client.post(
+            "/setup/update",
+            data={"token": "anything"},
+        )
+
+        assert response.status_code == 503
+        monkeypatch.setenv("RPITV_UPDATE_TOKEN", "configured-token")
+        page = client.get("/setup/")
+        assert b'method="post"' in page.data
+        assert b'name="token"' in page.data
+        response = client.post("/setup/update", data={"token": "wrong-token"})
+        assert response.status_code == 403
+        assert b"wrong-token" not in response.data
+        assert b"configured-token" not in response.data
+    finally:
+        rpitv.close()
+
 
 @pytest.mark.parametrize(
     "route", [

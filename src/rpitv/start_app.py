@@ -38,6 +38,7 @@ from rpitv.rpi_wrapper import (
 from rpitv.ambilight import Ambilight
 
 logger = logging.getLogger(__name__)
+UPDATE_REMOTE_URL = "https://github.com/lagrange2art/webapp.git"
 CAMERA_RESOLUTIONS = {
     "2592x1944": (2592, 1944), # too much for rpi2 ? 
     "1296x972": (1296, 972),
@@ -72,6 +73,7 @@ class RPiTV:
         self.pixelanimation = pixelanimation
         self.audiovisual = audiovisual
         self._closed = False
+        self._update_lock = threading.Lock()
         self.ambilight_thread = None
         self.ambilight_mode = "apply_edge_rgb"
         
@@ -120,6 +122,12 @@ class RPiTV:
             'setup',
             self.setup,
             methods=['GET']
+        )
+        self.add_endpoint(
+            '/setup/update',
+            'update_from_github',
+            self.update_from_github,
+            methods=['POST'],
         )
 
         self.add_endpoint('/logs', 'logs', self.logs, methods=['GET'])
@@ -363,8 +371,69 @@ class RPiTV:
             'setup.html',
             length=self.pixels.length,
             baudrate=self.pixels.baudrate,
+            update_enabled=bool(os.environ.get("RPITV_UPDATE_TOKEN")),
         )
-    
+
+    def update_from_github(self):
+        from rpitv.updater import run_command, hmac, Path, subprocess
+        import rpitv.updater
+        logger.info("Running update...")
+        configured_token = os.environ.get("RPITV_UPDATE_TOKEN")
+        submitted_token = request.form.get("token", "")
+        
+        if not configured_token:
+            return "Updates are disabled: RPITV_UPDATE_TOKEN is not configured. Check /etc/rpitv/rpitv.env", 503
+        if not hmac.compare_digest(configured_token, submitted_token):
+            return "Invalid update token. Check /etc/rpitv/rpitv.env", 403
+        if not self._update_lock.acquire(blocking=False):
+            return "An update is already running.", 409
+
+        repository = Path.cwd().resolve()
+        try:
+            remote_url = rpitv.updater.get_remote_url(repository)
+            git_branch = rpitv.updater.get_branch(repository)
+            local_changes = rpitv.updater.get_local_changes(repository)
+
+            if remote_url != UPDATE_REMOTE_URL:
+                return f"Update refused: Expected remote repository {UPDATE_REMOTE_URL}. Instead found {remote_url}", 400
+            if local_changes:
+                logger.warning(f"Stashing local changes in \n {local_changes}")
+                stash_hash = rpitv.updater.stash_local_changes(repository)
+            if git_branch != "main":
+                logger.warning(f"Installed checkout is on '{git_branch}' checking out to 'main' ")
+                rpitv.updater.checkout_to_branch(repository, "main")
+            
+        except (OSError, subprocess.SubprocessError) as exc: 
+            logger.exception(
+                f"Repo Preparation failed. Abort update"
+            )
+            return f"Repo Preparation failed. Abort update: {exc}", 500
+
+        try:
+            rpitv.updater.pull_and_update(repository, branch="main")
+
+        except (OSError, subprocess.SubprocessError) as exc:
+            logger.exception("GitHub update failed!")
+            rpitv.updater.checkout_to_branch(repository, git_branch)
+            if stash_hash:
+                logger.info("Restore stashed changes.")
+                rpitv.updater.restore_stashed_changes(repository, stash_hash)
+            
+            return f"Update failed: {exc}", 500
+        
+        finally:
+            self._update_lock.release()
+
+        logger.info("Updated from origin/main; restarting application")
+        restart_timer = threading.Timer(
+            1.0,
+            lambda: os.kill(os.getpid(), signal.SIGTERM),
+        )
+        restart_timer.daemon = True
+        restart_timer.start()
+        return "Update installed from origin/main. The service is restarting.", 202
+
+
     def logs(self):
         log_content = LOG_PATH.read_text() if LOG_PATH.exists() else "No log entries yet."
         return render_template('logs.html', log_content=ansi_to_html(log_content))
