@@ -395,10 +395,37 @@ class RPiTV:
         self.pixels.close()
 
 
+def register_mdns(name="rpitv", port=5000):
+    import socket
+    from zeroconf import ServiceInfo, Zeroconf
+    # Lokale IP-Adresse ermitteln
+    with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
+        sock.connect(("1.1.1.1", 80))
+        local_ip = sock.getsockname()[0]
+   
+    # mDNS Service definieren (Name wird zu meinserver.local)
+    desc = {'path': '/'}
+    info = ServiceInfo(
+        "_http._tcp.local.",
+        f"{name}._http._tcp.local.",
+        addresses=[socket.inet_aton(local_ip)],
+        port=port,
+        properties=desc,
+        server=f"{name}.local.",
+    )
+   
+    zeroconf = Zeroconf()
+    zeroconf.register_service(info)
+    logger.info(f"Server: http://{local_ip}:{port}")
+    logger.info(f"Server Alias: http://{name}.local:{port}")
+    return zeroconf
+
+
 def main(args=None) -> None:
     if args is None:
         parser = argparse.ArgumentParser()
         parser.add_argument('--port', type=int, default=5000)
+        parser.add_argument('--servername', type=str, default=None)
         parser.add_argument('--hardware', default='auto', choices=['auto', 'rpi', 'arduino'], help='Specify the hardware to use: rpi or arduino')
         parser.add_argument('--testing', action='store_true')
 
@@ -421,10 +448,14 @@ def main(args=None) -> None:
 
     signal.signal(signal.SIGTERM, handle_shutdown)
     signal.signal(signal.SIGINT, handle_shutdown)
-
+    if args.servername is not None:
+        zeroconf_server = register_mdns(name=args.servername, port=args.port)
     try:
         rpitv.run(debug=False, host='0.0.0.0', port=args.port)
     finally:
+        if args.servername is not None:
+            zeroconf_server.unregister_all_services()
+            zeroconf_server.close()
         rpitv.close()
 
 if __name__ == '__main__':

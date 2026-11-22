@@ -2,6 +2,8 @@
 set -euo pipefail
 
 PI_HOST="${PI_HOST:-rpitv}"
+SERVERNAME="rpitv"
+PORT="${PORT:-5000}"
 
 usage() {
   cat <<EOF
@@ -12,11 +14,16 @@ Deploy the rpitv application to a Raspberry Pi.
 Options:
   -H, --host HOST   SSH host or alias of the Raspberry Pi
                     Default: ${PI_HOST}
+  -n, --servername NAME
+                    mDNS hostname advertised by the app (default: ${SERVERNAME})
+  -p, --port PORT   Port number for the app (default: ${PORT})
   -h, --help        Show this help text and exit
 
 Examples:
   $(basename "$0")
-  $(basename "$0") --host rpitv-bedroom
+  $(basename "$0") --host pi@192.168.0.35
+  $(basename "$0") --servername rpitv
+  $(basename "$0") --port 5000
   PI_HOST=rpitv-livingroom $(basename "$0")
 EOF
 }
@@ -32,6 +39,24 @@ while [[ $# -gt 0 ]]; do
       PI_HOST="$2"
       shift 2
       ;;
+    -n|--servername)
+      if [[ $# -lt 2 ]]; then
+        echo "Error: $1 requires a hostname" >&2
+        usage >&2
+        exit 1
+      fi
+      SERVERNAME="$2"
+      shift 2
+      ;;
+    -p|--port)
+      if [[ $# -lt 2 ]]; then
+        echo "Error: $1 requires a port number" >&2
+        usage >&2
+        exit 1
+      fi
+      PORT="$2"
+      shift 2
+      ;;
     -h|--help)
       usage
       exit 0
@@ -44,10 +69,20 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
+if [[ ! "$SERVERNAME" =~ ^[A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])?$ ]]; then
+  echo "Error: servername must be a valid hostname label" >&2
+  exit 1
+fi
+
+if [[ ! "$PORT" =~ ^[0-9]{1,5}$ ]] || (( PORT < 1 || PORT > 65535 )); then
+  echo "Error: port must be a number between 1 and 65535" >&2
+  exit 1
+fi
+
 REMOTE_APP_DIR="/home/pi/Documents/rpitv"
 LOCAL_APP_DIR="${LOCAL_APP_DIR:-$(pwd)}"
 APP_USER="pi"
-PYTHON_BIN="/usr/bin/python3"
+PYTHON_BIN="${REMOTE_APP_DIR}/.venv/bin/python"
 SERVICE_NAME="rpitv"
 DESCRIPTION="Raspberry Pi TV App - Ambilight and LED control"
 
@@ -73,11 +108,14 @@ rsync -avz --delete \
   --exclude 'build' \
   "${LOCAL_APP_DIR}/" "${PI_HOST}:${REMOTE_APP_DIR}/"
 
-echo "==> Updating system packages"
+echo "==> Creating virtual environment and installing dependencies on the Pi"
 ssh "${PI_HOST}" "
   cd '${REMOTE_APP_DIR}' &&
-  ${PYTHON_BIN} -m pip install --upgrade pip setuptools wheel &&
-  ${PYTHON_BIN} -m pip install --upgrade .
+  if [ ! -x .venv/bin/python ]; then
+    /usr/bin/python3 -m venv --system-site-packages .venv &&
+    .venv/bin/pip install --upgrade pip setuptools wheel
+  fi
+  .venv/bin/pip install .
 "
 
 echo "==> Compiling Arduino sketch and uploading to the Arduino"
@@ -91,12 +129,19 @@ if ! ssh "${PI_HOST}" "
 fi
 
 echo "==> Creating systemd service ${SERVICE_NAME} on the Pi"
-ssh "${PI_HOST}" "sudo bash -s -- \"${SERVICE_NAME}\" \"${DESCRIPTION}\" \"${APP_USER}\" \"${PYTHON_BIN}\" \"${REMOTE_APP_DIR}\"" <<'REMOTE'
+ssh "${PI_HOST}" "sudo bash -s -- \"${SERVICE_NAME}\" \"${DESCRIPTION}\" \"${APP_USER}\" \"${PYTHON_BIN}\" \"${REMOTE_APP_DIR}\" \"${SERVERNAME}\" \"${PORT}\" " <<'REMOTE'
 SERVICE_NAME="$1"
 DESCRIPTION="$2"
 APP_USER="$3"
 PYTHON_BIN="$4"
 APP_DIR="$5"
+SERVERNAME="$6"
+PORT="$7"
+
+PORT_CAPABILITY=""
+if (( PORT < 1024 )); then
+  PORT_CAPABILITY="AmbientCapabilities=CAP_NET_BIND_SERVICE"
+fi
 
 echo "==> Removing existing systemd service ${SERVICE_NAME} if present"
 if systemctl cat "${SERVICE_NAME}.service" >/dev/null 2>&1; then
@@ -117,7 +162,8 @@ After=network.target
 
 [Service]
 WorkingDirectory=${APP_DIR}
-ExecStart=${PYTHON_BIN} -m rpitv.start_app
+ExecStart=${PYTHON_BIN} -m rpitv.start_app --servername ${SERVERNAME} --port ${PORT}
+${PORT_CAPABILITY}
 ExecStop=/bin/kill -s SIGTERM $MAINPID
 TimeoutStopSec=30
 Restart=always
