@@ -9,8 +9,12 @@ description = "Raspberry Pi LED web app"
 requires-python = ">=3.8"
 dependencies = [
   "Flask",
-  "numpy",
+  "zeroconf",
+  "numpy<2",
   "matplotlib",
+  "opencv-python-headless==4.11.0.86",
+  "adafruit-blinka",
+  "adafruit-circuitpython-neopixel",
   "ansi2html",
   "pyserial",
   "pytest",
