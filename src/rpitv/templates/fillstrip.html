@@ -76,23 +76,7 @@
     <p class="eyebrow">01 / Strip control</p>
     <h1>FILL STRIP</h1>
     <p>Set a color for the entire strip. Current signal: <strong>{{ name }}</strong></p>
-    <form action="{{ name }}" method="POST">
-      <label for="brightness">Brightness</label>
-
-      <input
-        id="brightness"
-        type="range"
-        name="Brightness"
-        min="0"
-        max="1"
-        step="0.01"
-        value="{{ brightness }}"
-        oninput="brightnessValue.value = this.value"
-        onchange="this.form.submit()"
-      >
-
-      <output id="brightnessValue">{{ brightness }}</output>
-    </form>
+    {% include "_brightness.html" %}
   </div>
   <a class="back-link" href="/fillstrip/0,0,0">Turn Off</a>
   <a class="back-link" href="/">Back to control</a>
