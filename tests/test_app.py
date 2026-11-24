@@ -80,6 +80,43 @@ def test_index_page_contains_restart_button():
         rpitv.close()
 
 
+def test_shared_brightness_endpoint_updates_and_redirects():
+    rpitv = RPiTV(Flask("rpitv.start_app"), brightness=0.5, testing=True)
+    try:
+        response = rpitv.app.test_client().post(
+            "/brightness",
+            data={"Brightness": "0.25", "next": "/animation/rotate"},
+        )
+
+        assert response.status_code == 302
+        assert response.headers["Location"] == "/animation/rotate"
+        assert rpitv.pixels.brightness == 0.25
+    finally:
+        rpitv.close()
+
+
+@pytest.mark.parametrize(
+    "route",
+    [
+        "/",
+        "/fillstrip/0,0,0",
+        "/ambilight/",
+        "/animation/rotate",
+        "/audiovisual/ladder",
+    ],
+)
+def test_pages_include_shared_brightness_slider(route):
+    rpitv = RPiTV(Flask("rpitv.start_app"), testing=True)
+    try:
+        response = rpitv.app.test_client().get(route)
+
+        assert response.status_code == 200
+        assert b'action="/brightness"' in response.data
+        assert b'name="Brightness"' in response.data
+    finally:
+        rpitv.close()
+
+
 def test_setup_updates_strip_length():
     set_led_length = 42
     from pathlib import Path
@@ -201,11 +238,12 @@ def test_adjust_brightness(brightness):
     try:
         client = rpitv.app.test_client()
         response = client.post(
-            "/fillstrip/255,128,64",
+            "/brightness",
             data={"Brightness": brightness},
         )
 
-        assert response.status_code == 200
+        assert response.status_code == 302
+        assert response.headers["Location"] == "/"
         assert rpitv.pixels.brightness == brightness
     finally:
         rpitv.close()

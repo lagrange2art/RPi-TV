@@ -16,7 +16,7 @@ from matplotlib import cm
 from matplotlib.colors import Normalize
 
 
-from flask import Flask, Response, jsonify, render_template, request
+from flask import Flask, Response, jsonify, redirect, render_template, request
 import threading 
 import time
 from rpitv.pixelmotion import Animation
@@ -65,6 +65,9 @@ class RPiTV:
             adc = ADC(testing=True)  # Fallback to testing mode if ADC initialization fails
 
         pixels = LedStrip(testing=testing, brightness=brightness, hardware=hardware)
+        self.app.context_processor(
+            lambda: {"brightness": self.pixels.brightness}
+        )
         pixelanimation = Animation(pixels)
         audiovisual = AudioVisual(adc, pixels)
 
@@ -87,7 +90,7 @@ class RPiTV:
         self.add_endpoint('/', '', self.index, methods=['GET'])
         self.add_endpoint('/restart', 'restart_server', self.restart_server, methods=['POST'])
         self.add_endpoint('/fillstrip/<rgb>', 'fillstrip', self.fillstrip, methods=['GET'])
-        self.add_endpoint('/fillstrip/<rgb>', 'setbrightness', self.set_brightness, methods=['POST', 'GET'])
+        self.add_endpoint('/brightness', 'setbrightness', self.set_brightness, methods=['POST'])
         self.add_endpoint('/animation/<method>', 'animation', self.animation, methods=['GET'])
         self.add_endpoint('/audiovisual/<method>', 'audiovisual', self.audiovis, methods=['GET'])
         self.add_endpoint(
@@ -189,12 +192,24 @@ class RPiTV:
         )
 
 
-    def set_brightness(self, rgb):
-        if request.method == 'GET':
-            return "Use the brightness slider to update the value"
+    def set_brightness(self):
+        brightness = request.form.get('Brightness', type=float)
+        if brightness is None:
+            return "Brightness must be between 0 and 1", 400
 
-        self.pixels.brightness = float(request.form['Brightness'])
-        return self.fillstrip(rgb)
+        try:
+            self.pixels.brightness = brightness
+        except ValueError:
+            return "Brightness must be between 0 and 1", 400
+
+        next_url = request.form.get('next', '/')
+        if (
+            not next_url.startswith('/')
+            or next_url.startswith('//')
+            or '\\' in next_url
+        ):
+            next_url = '/'
+        return redirect(next_url)
 
 
     def animation(self, method='rotate'):
